@@ -1,0 +1,21 @@
+case_id: refund_shipped_order
+name: Shipped order refund should not promise direct refund
+input:
+  user_id: U1001
+  order_id: OD2026001
+  message: 我买的耳机已经发货了，但是我现在不想要了，帮我退款。
+expected:
+  intent: refund_request
+  status: resolved
+  risk_level: medium
+  need_human_review: false
+  decision: suggest_reject_delivery_or_return_after_receipt
+  tools_called:
+    - context_builder
+    - sop_retriever
+  should_include:
+    - 已经发货
+    - 拒收
+  should_not_include:
+    - 可以直接退款
+

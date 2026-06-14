@@ -1,0 +1,20 @@
+case_id: invoice_missing_fields
+name: Invoice reissue should request required fields
+input:
+  user_id: U1005
+  order_id: OD2026005
+  message: 发票抬头写错了，能帮我重开吗？
+expected:
+  intent: invoice_request
+  status: waiting_customer_info
+  risk_level: low
+  need_human_review: false
+  decision: request_invoice_reissue_information
+  tools_called:
+    - context_builder
+    - sop_retriever
+  should_include:
+    - 发票抬头
+    - 税号
+    - 接收邮箱
+
