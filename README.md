@@ -35,6 +35,49 @@ This project aims to provide a practical business Agent template for customer su
 - Database: SQLite first, PostgreSQL later
 - Evaluation: YAML cases + Python runner
 
+## Local Development
+
+### Backend
+
+```bash
+cd apps/api
+py -3.12 -m pip install -r requirements.txt
+py -3.12 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Health check:
+
+```text
+http://localhost:8000/health
+```
+
+API docs:
+
+```text
+http://localhost:8000/docs
+```
+
+### Frontend
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+The frontend runs at:
+
+```text
+http://localhost:3000
+```
+
+### Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
 ## Project Structure
 
 ```text
@@ -66,3 +109,13 @@ support-sop-agent/
 - [ ] Add human review flow
 - [ ] Add evaluation runner
 
+## Current Status
+
+Phase 0 is in progress:
+
+- [x] Repository skeleton
+- [x] FastAPI backend entry point
+- [x] Health check API
+- [x] React/Vite frontend skeleton
+- [x] Docker and Docker Compose skeleton
+- [ ] Mock business APIs
