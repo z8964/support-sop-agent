@@ -58,6 +58,25 @@ Read trace history:
 GET /api/tickets/T00000001/traces
 ```
 
+## Review APIs
+
+```text
+GET  /api/reviews/pending
+POST /api/reviews/{ticket_id}
+GET  /api/reviews/{ticket_id}
+```
+
+Submit review example:
+
+```json
+{
+  "action": "edit",
+  "final_reply": "您好，该高金额退款申请已通过人工审核，我们会继续为您处理。",
+  "comment": "Adjusted wording.",
+  "reviewer_id": "reviewer_1"
+}
+```
+
 ## SOP APIs
 
 ```text
