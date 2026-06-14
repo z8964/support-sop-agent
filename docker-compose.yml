@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - ./knowledge_base:/workspace/knowledge_base
+      - ./examples:/workspace/examples
+      - ./evals:/workspace/evals
+
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
