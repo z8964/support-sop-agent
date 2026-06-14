@@ -78,6 +78,14 @@ POST /api/sops/reindex
 POST /api/sops/search
 ```
 
+人工审核 API：
+
+```text
+GET  /api/reviews/pending
+POST /api/reviews/{ticket_id}
+GET  /api/reviews/{ticket_id}
+```
+
 Mock 业务 API：
 
 ```text
@@ -148,7 +156,7 @@ support-sop-agent/
 - [x] 构建 SOP 加载与检索
 - [x] 实现 LangGraph 工作流
 - [x] 添加执行轨迹持久化
-- [ ] 添加人工审核流程
+- [x] 添加人工审核流程
 - [ ] 添加评估 runner
 
 ## 当前状态
@@ -165,3 +173,4 @@ support-sop-agent/
 - [x] Markdown SOP 加载与检索 API
 - [x] 面向退款、物流、发票场景的 LangGraph 工单工作流
 - [x] 内存版执行轨迹持久化与查询 API
+- [x] 支持 approve、edit、reject、escalate 的人工审核流程

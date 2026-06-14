@@ -78,6 +78,14 @@ POST /api/sops/reindex
 POST /api/sops/search
 ```
 
+Review APIs:
+
+```text
+GET  /api/reviews/pending
+POST /api/reviews/{ticket_id}
+GET  /api/reviews/{ticket_id}
+```
+
 Mock business APIs:
 
 ```text
@@ -148,7 +156,7 @@ support-sop-agent/
 - [x] Build SOP ingestion and retrieval
 - [x] Implement LangGraph workflow
 - [x] Add trace persistence
-- [ ] Add human review flow
+- [x] Add human review flow
 - [ ] Add evaluation runner
 
 ## Current Status
@@ -165,3 +173,4 @@ Foundation APIs are ready:
 - [x] Markdown SOP loading and retrieval APIs
 - [x] LangGraph ticket workflow for refund, logistics, and invoice scenarios
 - [x] In-memory trace persistence and trace query APIs
+- [x] Human review workflow for approve, edit, reject, and escalate actions
