@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.agents.ticket_workflow import run_ticket_workflow
+from app.schemas.agent import AgentRunResponse, AgentTraceStep
 from app.schemas.ticket import (
+    RiskLevel,
     Ticket,
     TicketCreate,
     TicketIntent,
@@ -49,3 +52,29 @@ def update_ticket(ticket_id: str, payload: TicketUpdate) -> Ticket:
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Ticket not found") from exc
 
+
+@router.post("/{ticket_id}/run", response_model=AgentRunResponse)
+def run_ticket_agent(ticket_id: str) -> AgentRunResponse:
+    try:
+        state = run_ticket_workflow(ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Ticket not found") from exc
+
+    return AgentRunResponse(
+        ticket_id=ticket_id,
+        status=TicketStatus(state["ticket_status"]),
+        intent=state["intent"]["intent"],
+        risk_level=RiskLevel(state["risk_level"]),
+        need_human_review=state["need_human_review"],
+        decision=state["decision"],
+        final_reply=state.get("final_reply"),
+        trace=[
+            AgentTraceStep(
+                node=step["node"],
+                input=step["input"],
+                output=step["output"],
+                status=step["status"],
+            )
+            for step in state.get("trace", [])
+        ],
+    )
