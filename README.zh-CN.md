@@ -2,61 +2,234 @@
 
 [English](./README.en.md) | [中文](./README.zh-CN.md)
 
-一个基于 LangGraph + RAG + Tool Calling 的客服工单 SOP 执行 Agent。
+Support SOP Agent 是一个开源客服工单工作流 Agent。它可以基于 SOP 文档进行检索，调用 Mock 业务工具，把高风险工单转入人工审核，记录 Agent 执行轨迹，并通过 YAML 用例进行回归评估。
 
-## 项目定位
+它不是一个普通聊天机器人，而是一个面向真实客服工单流程的业务 Agent 模板。
 
-客服 Agent 不应该只停留在聊天。真实客服工作通常需要查询订单、检查物流、检索 SOP、控制风险、进入人工审核，并保存可审计的执行轨迹。
+## 项目能力
 
-本项目目标是提供一个实用的客服业务 Agent 模板，展示如何把 Agent 落到真实业务流程中。
+当前 Demo 支持这些场景：
 
-## 计划功能
+- 已发货订单申请退款
+- 高金额退款进入人工审核
+- 物流长时间未更新
+- 发票重开且需要补充字段
 
-- 工单意图识别
-- 基于 RAG 的 SOP 检索
-- 订单、物流、用户 Mock 工具
-- 工单 CRUD API
-- 基于 LangGraph 的状态化工作流
-- 高风险工单人工审核
-- Agent 执行轨迹时间线
-- 基于 YAML 的回归评估
+每个工单会经过：
 
-## MVP 场景
+1. 识别工单意图。
+2. 加载订单、物流、用户、历史工单上下文。
+3. 检索相关 SOP 条款。
+4. 生成结构化决策。
+5. 生成面向客户的回复。
+6. 保存执行轨迹。
+7. 将高风险工单转入人工审核。
+8. 通过 YAML 用例进行回归评估。
 
-- 已发货退款
-- 物流异常
-- 发票重开
+## 架构
 
-## 计划技术栈
+```mermaid
+flowchart TD
+    A["Web Demo / API Client"] --> B["FastAPI"]
+    B --> C["Ticket APIs"]
+    B --> D["Mock Business APIs"]
+    B --> E["SOP Retrieval APIs"]
+    C --> F["LangGraph Ticket Workflow"]
+    F --> G["Intent Node"]
+    G --> H["Context Builder"]
+    H --> I["SOP Retriever"]
+    I --> J["Decision Agent"]
+    J --> K["Reply Writer"]
+    K --> L["Ticket Update"]
+    L --> M["Trace Service"]
+    B --> N["Human Review APIs"]
+    B --> O["Evaluation Runner"]
+```
+
+工作流节点：
+
+```text
+intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
+```
+
+## 技术栈
 
 - Backend: FastAPI
-- Frontend: React 或 Next.js
+- Frontend: React + Vite
 - Agent workflow: LangGraph
-- Vector store: Chroma
-- Database: 先用 SQLite，后续替换 PostgreSQL
+- SOP retrieval: Markdown policy loader + 轻量关键词检索
+- Storage: MVP 阶段使用内存服务
 - Evaluation: YAML cases + Python runner
+- DevOps: Docker Compose
+
+## 项目结构
+
+```text
+support-sop-agent/
+  apps/
+    api/
+      app/
+        agents/
+        routes/
+        schemas/
+        services/
+      tests/
+    web/
+      src/
+  knowledge_base/
+  evals/
+    cases/
+    run.py
+  examples/
+  README.md
+  README.en.md
+  README.zh-CN.md
+  docker-compose.yml
+```
+
+## 使用 Docker 快速运行
+
+需要安装：
+
+- Docker
+- Docker Compose
+
+运行：
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+打开：
+
+```text
+Web UI:   http://localhost:3000
+API docs: http://localhost:8000/docs
+Health:   http://localhost:8000/health
+```
+
+在前端页面中：
+
+1. 选择一个内置场景。
+2. 创建工单。
+3. 运行 Agent。
+4. 查看决策、最终回复和 Trace。
+5. 如果是高金额退款，处理待审核工单。
 
 ## 本地开发
 
 ### 后端
 
+需要：
+
+- Python 3.12
+
+安装依赖：
+
 ```bash
 cd apps/api
 py -3.12 -m pip install -r requirements.txt
+```
+
+启动 API：
+
+```bash
 py -3.12 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-健康检查：
-
-```text
-http://localhost:8000/health
-```
-
-API 文档：
+打开：
 
 ```text
 http://localhost:8000/docs
 ```
+
+运行测试：
+
+```bash
+cd apps/api
+py -3.12 -m pytest tests
+```
+
+### 前端
+
+需要：
+
+- Node.js 20+
+- npm
+
+安装依赖：
+
+```bash
+cd apps/web
+npm install
+```
+
+启动前端：
+
+```bash
+npm run dev
+```
+
+打开：
+
+```text
+http://localhost:3000
+```
+
+构建：
+
+```bash
+npm run build
+```
+
+Vite 开发服务器默认会把 API 请求代理到 `http://localhost:8000`。Docker 中通过 `docker-compose.yml` 配置 `VITE_API_TARGET=http://api:8000`。
+
+## API 示例
+
+### 创建工单
+
+```bash
+curl -X POST http://localhost:8000/api/tickets \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\":\"U1001\",\"order_id\":\"OD2026001\",\"message\":\"我买的耳机已经发货了，但是我现在不想要了，帮我退款。\"}"
+```
+
+### 运行 Agent 工作流
+
+```bash
+curl -X POST http://localhost:8000/api/tickets/T00000001/run
+```
+
+### 查看最新 Trace
+
+```bash
+curl http://localhost:8000/api/tickets/T00000001/trace
+```
+
+### 检索 SOP
+
+```bash
+curl -X POST http://localhost:8000/api/sops/search \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"shipped order direct refund\",\"policy_type\":\"refund\",\"top_k\":2}"
+```
+
+### 查看待审核工单
+
+```bash
+curl http://localhost:8000/api/reviews/pending
+```
+
+### 提交人工审核
+
+```bash
+curl -X POST http://localhost:8000/api/reviews/T00000001 \
+  -H "Content-Type: application/json" \
+  -d "{\"action\":\"edit\",\"final_reply\":\"该退款申请已通过人工审核，我们会继续处理。\",\"comment\":\"调整回复措辞。\"}"
+```
+
+## API 列表
 
 工单 API：
 
@@ -86,14 +259,6 @@ POST /api/reviews/{ticket_id}
 GET  /api/reviews/{ticket_id}
 ```
 
-评估命令：
-
-```bash
-py -3.12 -m evals.run
-```
-
-评估 runner 会读取 `evals/cases` 下的 YAML 用例，执行工单工作流，检查意图、状态、决策、回复约束，并输出 `evals/report.json`。
-
 Mock 业务 API：
 
 ```text
@@ -104,86 +269,124 @@ GET  /mock/users/{user_id}/tickets
 POST /mock/escalations
 ```
 
-样例数据：
+## 样例数据
+
+常用订单 ID：
 
 ```text
 OD2026001: 已发货退款场景
+OD2026002: 未发货退款场景
 OD2026003: 高金额退款场景
 OD2026004: 物流未更新场景
 OD2026005: 发票重开场景
 ```
 
-### 前端
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-前端地址：
+常用用户 ID：
 
 ```text
-http://localhost:3000
+U1001: 普通用户
+U1003: VIP 用户
+U1005: 企业用户
 ```
 
-前端 Demo 支持创建工单、运行 Agent 工作流、查看决策和 Trace，并处理待审核工单。
+## 评估
 
-### Docker Compose
+运行所有评估用例：
 
 ```bash
-cp .env.example .env
-docker compose up --build
+py -3.12 -m evals.run
 ```
 
-## 项目结构
+评估 runner 会：
+
+- 读取 `evals/cases` 下的 YAML 用例
+- 创建工单
+- 运行 Agent 工作流
+- 检查意图、状态、风险等级、决策、回复约束和 Trace 节点
+- 输出 JSON 报告到 `evals/report.json`
+
+期望输出：
 
 ```text
-support-sop-agent/
-  apps/
-    api/
-    web/
-  knowledge_base/
-  evals/
-    cases/
-  examples/
-    tickets/
-  .github/
-    ISSUE_TEMPLATE/
-  README.md
-  README.en.md
-  README.zh-CN.md
-  .gitignore
-  .env.example
-  LICENSE
+{"total": 4, "passed": 4, "failed": 0}
 ```
 
-## Roadmap
+运行后端测试：
 
-- [x] 初始化后端和前端骨架
-- [x] 添加 Mock 业务 API
-- [x] 实现工单 CRUD
-- [x] 构建 SOP 加载与检索
-- [x] 实现 LangGraph 工作流
-- [x] 添加执行轨迹持久化
-- [x] 添加人工审核流程
-- [x] 添加评估 runner
-- [x] 构建前端 Demo UI
+```bash
+cd apps/api
+py -3.12 -m pytest tests
+```
 
 ## 当前状态
 
-基础 API 已就绪：
+已实现：
 
-- [x] 仓库骨架
-- [x] FastAPI 后端入口
-- [x] 健康检查 API
-- [x] React/Vite 前端骨架
-- [x] Docker 和 Docker Compose 骨架
-- [x] Mock 业务 API
-- [x] 工单 CRUD API
-- [x] Markdown SOP 加载与检索 API
-- [x] 面向退款、物流、发票场景的 LangGraph 工单工作流
-- [x] 内存版执行轨迹持久化与查询 API
-- [x] 支持 approve、edit、reject、escalate 的人工审核流程
-- [x] 基于 YAML 的评估 runner 和回归用例
-- [x] 面向工单工作流、Trace、人工审核的 React Demo UI
+- 仓库骨架
+- FastAPI 后端
+- React/Vite 前端 Demo
+- Mock 业务 API
+- 工单 CRUD API
+- Markdown SOP 加载与检索
+- LangGraph 工单工作流
+- Trace 持久化与查询 API
+- 人工审核流程
+- YAML 评估 runner
+
+暂未实现：
+
+- 数据库持久化
+- 真实 embedding / 向量数据库
+- 真实 LLM 集成
+- 真实 CRM / 订单 / 物流系统集成
+- 认证和多租户
+
+## 常见问题
+
+### 没有 `py` 命令
+
+可以改用 `python`：
+
+```bash
+python -m pip install -r apps/api/requirements.txt
+python -m uvicorn app.main:app --reload --app-dir apps/api
+```
+
+### 没有 `node` 或 `npm`
+
+请安装 Node.js 20+，然后重新打开终端。
+
+### 前端无法访问后端
+
+确认后端运行在：
+
+```text
+http://localhost:8000
+```
+
+Docker 环境中需要保留 `docker-compose.yml` 里的：
+
+```text
+VITE_API_TARGET=http://api:8000
+```
+
+### Trace 接口返回 404
+
+需要先运行 Agent：
+
+```text
+POST /api/tickets/{ticket_id}/run
+```
+
+工作流执行后才会生成 Trace。
+
+## Roadmap
+
+- 接入 SQLite / PostgreSQL 持久化
+- 将关键词 SOP 检索替换为 Chroma 或 Qdrant
+- 增加真实 LLM Prompt 节点
+- 增加认证
+- 接入 OpenTelemetry 或 LangSmith tracing
+- 添加 GitHub Actions 跑测试和评估
+- 添加截图和 Demo GIF
+
