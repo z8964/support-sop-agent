@@ -127,6 +127,8 @@ npm run dev
 http://localhost:3000
 ```
 
+前端 Demo 支持创建工单、运行 Agent 工作流、查看决策和 Trace，并处理待审核工单。
+
 ### Docker Compose
 
 ```bash
@@ -166,6 +168,7 @@ support-sop-agent/
 - [x] 添加执行轨迹持久化
 - [x] 添加人工审核流程
 - [x] 添加评估 runner
+- [x] 构建前端 Demo UI
 
 ## 当前状态
 
@@ -183,3 +186,4 @@ support-sop-agent/
 - [x] 内存版执行轨迹持久化与查询 API
 - [x] 支持 approve、edit、reject、escalate 的人工审核流程
 - [x] 基于 YAML 的评估 runner 和回归用例
+- [x] 面向工单工作流、Trace、人工审核的 React Demo UI
