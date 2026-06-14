@@ -8,6 +8,7 @@ from app.schemas.ticket import RiskLevel, TicketIntent, TicketStatus, TicketUpda
 from app.services.mock_data import LOGISTICS, ORDERS, TICKET_HISTORY, USERS
 from app.services.sop_service import sop_service
 from app.services.ticket_service import ticket_service
+from app.services.trace_service import trace_service
 
 
 def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
@@ -313,7 +314,15 @@ def _persist_node(state: TicketWorkflowState) -> TicketWorkflowState:
     )
     ticket = ticket_service.update_ticket(state["ticket_id"], ticket_update)
     output = {"ticket": ticket.model_dump(mode="json")}
-    return _merge(state, {}, "ticket_update", {"ticket_id": state["ticket_id"]}, output)
+    final_state = _merge(
+        state,
+        {},
+        "ticket_update",
+        {"ticket_id": state["ticket_id"]},
+        output,
+    )
+    trace_service.save_trace(state["ticket_id"], final_state.get("trace", []))
+    return final_state
 
 
 def _contains_any(text: str, keywords: list[str]) -> bool:
@@ -368,4 +377,3 @@ def _merge(
         **updates,
         "trace": trace,
     }
-

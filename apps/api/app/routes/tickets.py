@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.agents.ticket_workflow import run_ticket_workflow
 from app.schemas.agent import AgentRunResponse, AgentTraceStep
+from app.schemas.trace import TicketTrace, TicketTraceListResponse
 from app.schemas.ticket import (
     RiskLevel,
     Ticket,
@@ -12,6 +13,7 @@ from app.schemas.ticket import (
     TicketUpdate,
 )
 from app.services.ticket_service import TicketNotFoundError, ticket_service
+from app.services.trace_service import TraceNotFoundError, trace_service
 
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
@@ -77,4 +79,30 @@ def run_ticket_agent(ticket_id: str) -> AgentRunResponse:
             )
             for step in state.get("trace", [])
         ],
+    )
+
+
+@router.get("/{ticket_id}/trace", response_model=TicketTrace)
+def get_ticket_trace(ticket_id: str) -> TicketTrace:
+    try:
+        ticket_service.get_ticket(ticket_id)
+        return trace_service.get_latest_trace(ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Ticket not found") from exc
+    except TraceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Trace not found") from exc
+
+
+@router.get("/{ticket_id}/traces", response_model=TicketTraceListResponse)
+def list_ticket_traces(ticket_id: str) -> TicketTraceListResponse:
+    try:
+        ticket_service.get_ticket(ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Ticket not found") from exc
+
+    traces = trace_service.list_traces(ticket_id)
+    return TicketTraceListResponse(
+        ticket_id=ticket_id,
+        items=traces,
+        total=len(traces),
     )
