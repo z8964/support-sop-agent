@@ -17,6 +17,26 @@ Health check:
 GET http://localhost:8000/health
 ```
 
+## Ticket APIs
+
+```text
+POST  /api/tickets
+GET   /api/tickets
+GET   /api/tickets/{ticket_id}
+PATCH /api/tickets/{ticket_id}
+```
+
+Create ticket example:
+
+```json
+{
+  "user_id": "U1001",
+  "order_id": "OD2026001",
+  "message": "我不想要了，帮我退款",
+  "channel": "web"
+}
+```
+
 ## Mock Business APIs
 
 ```text
