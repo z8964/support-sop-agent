@@ -1,4 +1,5 @@
 import re
+import os
 from pathlib import Path
 
 from app.schemas.sop import (
@@ -20,7 +21,11 @@ POLICY_TYPE_BY_FILE = {
 class SopService:
     def __init__(self, knowledge_base_path: Path | None = None) -> None:
         root = Path(__file__).resolve().parents[4]
-        self.knowledge_base_path = knowledge_base_path or root / "knowledge_base"
+        env_path = os.getenv("SUPPORT_SOP_KNOWLEDGE_BASE")
+        self.knowledge_base_path = (
+            knowledge_base_path
+            or (Path(env_path) if env_path else root / "knowledge_base")
+        )
         self._chunks: list[SopChunk] = []
 
     def reindex(self) -> SopReindexResponse:
@@ -158,4 +163,3 @@ class SopService:
 
 
 sop_service = SopService()
-

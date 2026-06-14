@@ -117,6 +117,45 @@ In the web UI:
 4. Inspect the decision, final reply, and trace.
 5. For high-value refund, handle the pending human review.
 
+## Windows EXE Packaging
+
+You can package the backend API and SOP knowledge base into a Windows executable.
+
+Requirements:
+
+- Python 3.12
+- Windows PowerShell
+
+Build:
+
+```powershell
+.\scripts\build_windows_exe.ps1
+```
+
+Output:
+
+```text
+dist\support-sop-agent.exe
+```
+
+Run:
+
+```powershell
+.\dist\support-sop-agent.exe
+```
+
+The executable starts the FastAPI backend and opens:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Notes:
+
+- This EXE packages the backend API and SOP documents.
+- The React web UI is not embedded yet. To use the web UI, run it separately with `npm run dev` or Docker Compose.
+- You can change host or port with `SUPPORT_SOP_HOST` and `SUPPORT_SOP_PORT`.
+
 ## Local Development
 
 ### Backend
@@ -389,4 +428,3 @@ Trace is created after workflow execution.
 - Add OpenTelemetry or LangSmith tracing
 - Add GitHub Actions for tests and evals
 - Add screenshots and demo GIF
-

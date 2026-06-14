@@ -117,6 +117,45 @@ Health:   http://localhost:8000/health
 4. 查看决策、最终回复和 Trace。
 5. 如果是高金额退款，处理待审核工单。
 
+## Windows EXE 打包
+
+可以把后端 API 和 SOP 知识库打包成 Windows 可执行文件。
+
+需要：
+
+- Python 3.12
+- Windows PowerShell
+
+构建：
+
+```powershell
+.\scripts\build_windows_exe.ps1
+```
+
+输出文件：
+
+```text
+dist\support-sop-agent.exe
+```
+
+运行：
+
+```powershell
+.\dist\support-sop-agent.exe
+```
+
+exe 会启动 FastAPI 后端，并自动打开：
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+说明：
+
+- 这个 EXE 会打包后端 API 和 SOP 文档。
+- React 前端暂未内嵌到 EXE 中。如需使用前端 Demo，可以单独运行 `npm run dev`，或使用 Docker Compose。
+- 可以通过 `SUPPORT_SOP_HOST` 和 `SUPPORT_SOP_PORT` 修改监听地址和端口。
+
 ## 本地开发
 
 ### 后端
@@ -389,4 +428,3 @@ POST /api/tickets/{ticket_id}/run
 - 接入 OpenTelemetry 或 LangSmith tracing
 - 添加 GitHub Actions 跑测试和评估
 - 添加截图和 Demo GIF
-
