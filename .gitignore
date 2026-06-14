@@ -2,17 +2,20 @@
 .env.local
 
 .venv/
+.venv-build/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.idea/
 
 node_modules/
 .next/
 dist/
 build/
+*.spec
 coverage/
 
 *.db
