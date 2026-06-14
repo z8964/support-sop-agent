@@ -136,6 +136,7 @@ Output:
 
 ```text
 dist\support-sop-agent.exe
+dist\support-sop-agent-v0.1.1-windows-x64-lite.zip
 ```
 
 Run:
@@ -153,6 +154,7 @@ http://127.0.0.1:8000/docs
 Notes:
 
 - This EXE packages the backend API and SOP documents.
+- The packaging script also creates a lite zip that is small enough for 25 MB upload limits.
 - The React web UI is not embedded yet. To use the web UI, run it separately with `npm run dev` or Docker Compose.
 - You can change host or port with `SUPPORT_SOP_HOST` and `SUPPORT_SOP_PORT`.
 

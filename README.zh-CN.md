@@ -136,6 +136,7 @@ Health:   http://localhost:8000/health
 
 ```text
 dist\support-sop-agent.exe
+dist\support-sop-agent-v0.1.1-windows-x64-lite.zip
 ```
 
 运行：
@@ -153,6 +154,7 @@ http://127.0.0.1:8000/docs
 说明：
 
 - 这个 EXE 会打包后端 API 和 SOP 文档。
+- 打包脚本也会生成一个 lite zip，可以满足 25MB 上传限制。
 - React 前端暂未内嵌到 EXE 中。如需使用前端 Demo，可以单独运行 `npm run dev`，或使用 Docker Compose。
 - 可以通过 `SUPPORT_SOP_HOST` 和 `SUPPORT_SOP_PORT` 修改监听地址和端口。
 

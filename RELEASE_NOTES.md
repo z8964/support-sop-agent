@@ -1,5 +1,41 @@
 # Release Notes
 
+## v0.1.2
+
+Windows lite packaging release.
+
+### Highlights
+
+- Reduced Windows release asset size to fit a 25 MB upload limit.
+- Added a LangGraph fallback runner for the packaged executable:
+  - development still uses LangGraph when installed
+  - packaged lite EXE can exclude LangGraph/LangChain/LangSmith dependencies
+- Updated `scripts/build_windows_exe.ps1` to generate:
+
+```text
+dist\support-sop-agent-v0.1.1-windows-x64-lite.zip
+```
+
+### Verification
+
+Lite package size:
+
+```text
+24,760,969 bytes
+```
+
+The generated exe was started locally and verified through:
+
+```text
+GET http://127.0.0.1:8000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok","service":"api","environment":"development","version":"0.1.0"}
+```
+
 ## v0.1.1
 
 Windows packaging release.

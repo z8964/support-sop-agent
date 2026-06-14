@@ -1,6 +1,10 @@
 from typing import Any
 
-from langgraph.graph import END, StateGraph
+try:
+    from langgraph.graph import END, StateGraph
+except ImportError:  # Allows the Windows EXE build to use a lighter fallback.
+    END = "__end__"
+    StateGraph = None  # type: ignore[assignment]
 
 from app.agents.state import TicketWorkflowState
 from app.config import get_settings
@@ -32,6 +36,9 @@ def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
 
 
 def _build_graph():
+    if StateGraph is None:
+        return _SequentialTicketWorkflow()
+
     workflow = StateGraph(TicketWorkflowState)
     workflow.add_node("intent", _intent_node)
     workflow.add_node("context", _context_node)
@@ -49,6 +56,20 @@ def _build_graph():
     workflow.add_edge("persist", END)
 
     return workflow.compile()
+
+
+class _SequentialTicketWorkflow:
+    def invoke(self, state: TicketWorkflowState) -> TicketWorkflowState:
+        for node in (
+            _intent_node,
+            _context_node,
+            _sop_node,
+            _decision_node,
+            _reply_node,
+            _persist_node,
+        ):
+            state = node(state)
+        return state
 
 
 def _intent_node(state: TicketWorkflowState) -> TicketWorkflowState:
