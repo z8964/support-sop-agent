@@ -25,6 +25,8 @@ GET   /api/tickets
 GET   /api/tickets/{ticket_id}
 PATCH /api/tickets/{ticket_id}
 POST  /api/tickets/{ticket_id}/run
+GET   /api/tickets/{ticket_id}/trace
+GET   /api/tickets/{ticket_id}/traces
 ```
 
 Create ticket example:
@@ -42,6 +44,18 @@ Run ticket workflow:
 
 ```text
 POST /api/tickets/T00000001/run
+```
+
+Read latest trace:
+
+```text
+GET /api/tickets/T00000001/trace
+```
+
+Read trace history:
+
+```text
+GET /api/tickets/T00000001/traces
 ```
 
 ## SOP APIs
