@@ -77,6 +77,20 @@ Submit review example:
 }
 ```
 
+## Evaluation
+
+Run from repository root:
+
+```bash
+py -3.12 -m evals.run
+```
+
+The report is written to:
+
+```text
+evals/report.json
+```
+
 ## SOP APIs
 
 ```text

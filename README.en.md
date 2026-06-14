@@ -86,6 +86,14 @@ POST /api/reviews/{ticket_id}
 GET  /api/reviews/{ticket_id}
 ```
 
+Evaluation:
+
+```bash
+py -3.12 -m evals.run
+```
+
+The runner loads YAML cases from `evals/cases`, executes the ticket workflow, checks expected intent/status/decision/reply constraints, and writes `evals/report.json`.
+
 Mock business APIs:
 
 ```text
@@ -157,7 +165,7 @@ support-sop-agent/
 - [x] Implement LangGraph workflow
 - [x] Add trace persistence
 - [x] Add human review flow
-- [ ] Add evaluation runner
+- [x] Add evaluation runner
 
 ## Current Status
 
@@ -174,3 +182,4 @@ Foundation APIs are ready:
 - [x] LangGraph ticket workflow for refund, logistics, and invoice scenarios
 - [x] In-memory trace persistence and trace query APIs
 - [x] Human review workflow for approve, edit, reject, and escalate actions
+- [x] YAML evaluation runner with regression cases

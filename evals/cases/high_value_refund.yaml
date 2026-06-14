@@ -1,0 +1,16 @@
+case_id: high_value_refund
+name: High-value refund should enter human review
+input:
+  user_id: U1003
+  order_id: OD2026003
+  message: 这个订单我要退款
+expected:
+  intent: refund_request
+  status: pending_human_review
+  risk_level: high
+  need_human_review: true
+  decision: cancel_unshipped_order
+  tools_called:
+    - context_builder
+    - sop_retriever
+

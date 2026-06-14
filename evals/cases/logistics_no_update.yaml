@@ -1,0 +1,19 @@
+case_id: logistics_no_update
+name: Stale logistics should create follow-up decision
+input:
+  user_id: U1004
+  order_id: OD2026004
+  message: 我的快递三天没有更新了，什么时候能到？
+expected:
+  intent: logistics_issue
+  status: resolved
+  risk_level: medium
+  need_human_review: false
+  decision: create_logistics_follow_up
+  tools_called:
+    - context_builder
+    - sop_retriever
+  should_include:
+    - 物流
+    - 跟进
+
