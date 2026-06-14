@@ -37,6 +37,24 @@ Create ticket example:
 }
 ```
 
+## SOP APIs
+
+```text
+GET  /api/sops
+POST /api/sops/reindex
+POST /api/sops/search
+```
+
+Search example:
+
+```json
+{
+  "query": "shipped order direct refund",
+  "policy_type": "refund",
+  "top_k": 2
+}
+```
+
 ## Mock Business APIs
 
 ```text
