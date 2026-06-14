@@ -67,6 +67,14 @@ GET   /api/tickets/{ticket_id}
 PATCH /api/tickets/{ticket_id}
 ```
 
+SOP APIs:
+
+```text
+GET  /api/sops
+POST /api/sops/reindex
+POST /api/sops/search
+```
+
 Mock business APIs:
 
 ```text
@@ -134,7 +142,7 @@ support-sop-agent/
 - [x] Initialize backend and frontend skeleton
 - [x] Add mock business APIs
 - [x] Implement ticket CRUD
-- [ ] Build SOP ingestion and retrieval
+- [x] Build SOP ingestion and retrieval
 - [ ] Implement LangGraph workflow
 - [ ] Add trace persistence
 - [ ] Add human review flow
@@ -151,4 +159,4 @@ Foundation APIs are ready:
 - [x] Docker and Docker Compose skeleton
 - [x] Mock business APIs
 - [x] Ticket CRUD APIs
-
+- [x] Markdown SOP loading and retrieval APIs

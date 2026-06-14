@@ -67,6 +67,14 @@ GET   /api/tickets/{ticket_id}
 PATCH /api/tickets/{ticket_id}
 ```
 
+SOP API：
+
+```text
+GET  /api/sops
+POST /api/sops/reindex
+POST /api/sops/search
+```
+
 Mock 业务 API：
 
 ```text
@@ -134,7 +142,7 @@ support-sop-agent/
 - [x] 初始化后端和前端骨架
 - [x] 添加 Mock 业务 API
 - [x] 实现工单 CRUD
-- [ ] 构建 SOP 加载与检索
+- [x] 构建 SOP 加载与检索
 - [ ] 实现 LangGraph 工作流
 - [ ] 添加执行轨迹持久化
 - [ ] 添加人工审核流程
@@ -151,4 +159,4 @@ support-sop-agent/
 - [x] Docker 和 Docker Compose 骨架
 - [x] Mock 业务 API
 - [x] 工单 CRUD API
-
+- [x] Markdown SOP 加载与检索 API
