@@ -57,6 +57,25 @@ API docs:
 http://localhost:8000/docs
 ```
 
+Mock business APIs:
+
+```text
+GET  /mock/orders/{order_id}
+GET  /mock/logistics/{order_id}
+GET  /mock/users/{user_id}
+GET  /mock/users/{user_id}/tickets
+POST /mock/escalations
+```
+
+Seed examples:
+
+```text
+OD2026001: shipped refund scenario
+OD2026003: high-value refund scenario
+OD2026004: logistics no-update scenario
+OD2026005: invoice reissue scenario
+```
+
 ### Frontend
 
 ```bash
@@ -118,4 +137,5 @@ Phase 0 is in progress:
 - [x] Health check API
 - [x] React/Vite frontend skeleton
 - [x] Docker and Docker Compose skeleton
-- [ ] Mock business APIs
+- [x] Mock business APIs
+- [ ] Ticket CRUD APIs

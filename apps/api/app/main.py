@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.routes.health import router as health_router
+from app.routes.mock import router as mock_router
 
 
 settings = get_settings()
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(mock_router)
 
 
 @app.get("/")
@@ -34,4 +36,3 @@ def root() -> dict[str, str]:
         "status": "ok",
         "docs": "/docs",
     }
-

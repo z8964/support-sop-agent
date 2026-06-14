@@ -17,3 +17,21 @@ Health check:
 GET http://localhost:8000/health
 ```
 
+## Mock Business APIs
+
+```text
+GET  /mock/orders/{order_id}
+GET  /mock/logistics/{order_id}
+GET  /mock/users/{user_id}
+GET  /mock/users/{user_id}/tickets
+POST /mock/escalations
+```
+
+Useful seed IDs:
+
+```text
+OD2026001: shipped order
+OD2026003: high-value order
+OD2026004: logistics no-update order
+OD2026005: delivered order for invoice flow
+```
