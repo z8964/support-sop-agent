@@ -2,61 +2,234 @@
 
 [English](./README.en.md) | [中文](./README.zh-CN.md)
 
-An open-source customer support workflow agent that follows SOPs, calls business tools, routes risky cases to human review, and generates compliant replies.
+Support SOP Agent is an open-source customer support workflow Agent. It follows SOP documents, calls mock business tools, routes risky tickets to human review, records execution traces, and runs regression evaluations.
 
-## Why
+This is not a generic chatbot. It is a practical business Agent template for real ticket workflows.
 
-Customer support agents should not stop at chat. Real support work needs order lookup, logistics checks, SOP retrieval, risk control, human review, and auditable execution traces.
+## What It Does
 
-This project aims to provide a practical business Agent template for customer support workflows.
-
-## Planned Features
-
-- Ticket intent classification
-- SOP retrieval with RAG
-- Mock order, logistics, and user tools
-- Ticket CRUD APIs
-- LangGraph-based stateful workflow
-- Human-in-the-loop review for risky cases
-- Agent execution trace timeline
-- YAML-based regression evaluation
-
-## MVP Scenarios
+The project currently supports these demo scenarios:
 
 - Shipped order refund
-- Logistics issue
-- Invoice reissue
+- High-value refund requiring human review
+- Logistics tracking with no recent update
+- Invoice reissue with missing required fields
 
-## Planned Tech Stack
+For each ticket, the workflow can:
+
+1. Classify the ticket intent.
+2. Load order, logistics, user, and ticket history context.
+3. Retrieve relevant SOP policy sections.
+4. Make a structured decision.
+5. Generate a customer-facing reply.
+6. Save an execution trace.
+7. Route high-risk cases to human review.
+8. Run YAML-based regression evaluations.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A["Web Demo / API Client"] --> B["FastAPI"]
+    B --> C["Ticket APIs"]
+    B --> D["Mock Business APIs"]
+    B --> E["SOP Retrieval APIs"]
+    C --> F["LangGraph Ticket Workflow"]
+    F --> G["Intent Node"]
+    G --> H["Context Builder"]
+    H --> I["SOP Retriever"]
+    I --> J["Decision Agent"]
+    J --> K["Reply Writer"]
+    K --> L["Ticket Update"]
+    L --> M["Trace Service"]
+    B --> N["Human Review APIs"]
+    B --> O["Evaluation Runner"]
+```
+
+Workflow nodes:
+
+```text
+intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
+```
+
+## Tech Stack
 
 - Backend: FastAPI
-- Frontend: React or Next.js
+- Frontend: React + Vite
 - Agent workflow: LangGraph
-- Vector store: Chroma
-- Database: SQLite first, PostgreSQL later
+- SOP retrieval: Markdown policy loader + lightweight keyword retrieval
+- Storage: in-memory services for MVP
 - Evaluation: YAML cases + Python runner
+- DevOps: Docker Compose
+
+## Project Structure
+
+```text
+support-sop-agent/
+  apps/
+    api/
+      app/
+        agents/
+        routes/
+        schemas/
+        services/
+      tests/
+    web/
+      src/
+  knowledge_base/
+  evals/
+    cases/
+    run.py
+  examples/
+  README.md
+  README.en.md
+  README.zh-CN.md
+  docker-compose.yml
+```
+
+## Quick Start With Docker
+
+Requirements:
+
+- Docker
+- Docker Compose
+
+Run:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open:
+
+```text
+Web UI:   http://localhost:3000
+API docs: http://localhost:8000/docs
+Health:   http://localhost:8000/health
+```
+
+In the web UI:
+
+1. Choose a scenario.
+2. Create a ticket.
+3. Run the Agent.
+4. Inspect the decision, final reply, and trace.
+5. For high-value refund, handle the pending human review.
 
 ## Local Development
 
 ### Backend
 
+Requirements:
+
+- Python 3.12
+
+Install dependencies:
+
 ```bash
 cd apps/api
 py -3.12 -m pip install -r requirements.txt
+```
+
+Run the API:
+
+```bash
 py -3.12 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Health check:
-
-```text
-http://localhost:8000/health
-```
-
-API docs:
+Open:
 
 ```text
 http://localhost:8000/docs
 ```
+
+Run tests:
+
+```bash
+cd apps/api
+py -3.12 -m pytest tests
+```
+
+### Frontend
+
+Requirements:
+
+- Node.js 20+
+- npm
+
+Install dependencies:
+
+```bash
+cd apps/web
+npm install
+```
+
+Run the web app:
+
+```bash
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Build:
+
+```bash
+npm run build
+```
+
+The Vite dev server proxies API requests to `http://localhost:8000` by default. In Docker, `VITE_API_TARGET=http://api:8000` is configured in `docker-compose.yml`.
+
+## API Examples
+
+### Create a ticket
+
+```bash
+curl -X POST http://localhost:8000/api/tickets \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\":\"U1001\",\"order_id\":\"OD2026001\",\"message\":\"我买的耳机已经发货了，但是我现在不想要了，帮我退款。\"}"
+```
+
+### Run the Agent workflow
+
+```bash
+curl -X POST http://localhost:8000/api/tickets/T00000001/run
+```
+
+### Read the latest trace
+
+```bash
+curl http://localhost:8000/api/tickets/T00000001/trace
+```
+
+### Search SOP documents
+
+```bash
+curl -X POST http://localhost:8000/api/sops/search \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"shipped order direct refund\",\"policy_type\":\"refund\",\"top_k\":2}"
+```
+
+### List pending human reviews
+
+```bash
+curl http://localhost:8000/api/reviews/pending
+```
+
+### Submit a review
+
+```bash
+curl -X POST http://localhost:8000/api/reviews/T00000001 \
+  -H "Content-Type: application/json" \
+  -d "{\"action\":\"edit\",\"final_reply\":\"Your request has been reviewed and will be handled by support.\",\"comment\":\"Adjusted wording.\"}"
+```
+
+## API Overview
 
 Ticket APIs:
 
@@ -86,14 +259,6 @@ POST /api/reviews/{ticket_id}
 GET  /api/reviews/{ticket_id}
 ```
 
-Evaluation:
-
-```bash
-py -3.12 -m evals.run
-```
-
-The runner loads YAML cases from `evals/cases`, executes the ticket workflow, checks expected intent/status/decision/reply constraints, and writes `evals/report.json`.
-
 Mock business APIs:
 
 ```text
@@ -104,86 +269,124 @@ GET  /mock/users/{user_id}/tickets
 POST /mock/escalations
 ```
 
-Seed examples:
+## Seed Data
+
+Useful order IDs:
 
 ```text
 OD2026001: shipped refund scenario
+OD2026002: unshipped refund scenario
 OD2026003: high-value refund scenario
 OD2026004: logistics no-update scenario
 OD2026005: invoice reissue scenario
 ```
 
-### Frontend
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-The frontend runs at:
+Useful user IDs:
 
 ```text
-http://localhost:3000
+U1001: normal user
+U1003: VIP user
+U1005: enterprise user
 ```
 
-The demo UI supports creating a ticket, running the Agent workflow, viewing the decision and trace, and handling pending human reviews.
+## Evaluation
 
-### Docker Compose
+Run all evaluation cases:
 
 ```bash
-cp .env.example .env
-docker compose up --build
+py -3.12 -m evals.run
 ```
 
-## Project Structure
+The runner:
+
+- loads YAML cases from `evals/cases`
+- creates a ticket
+- runs the Agent workflow
+- checks intent, status, risk level, decision, reply constraints, and trace nodes
+- writes a JSON report to `evals/report.json`
+
+Expected output:
 
 ```text
-support-sop-agent/
-  apps/
-    api/
-    web/
-  knowledge_base/
-  evals/
-    cases/
-  examples/
-    tickets/
-  .github/
-    ISSUE_TEMPLATE/
-  README.md
-  README.en.md
-  README.zh-CN.md
-  .gitignore
-  .env.example
-  LICENSE
+{"total": 4, "passed": 4, "failed": 0}
 ```
 
-## Roadmap
+Run backend tests:
 
-- [x] Initialize backend and frontend skeleton
-- [x] Add mock business APIs
-- [x] Implement ticket CRUD
-- [x] Build SOP ingestion and retrieval
-- [x] Implement LangGraph workflow
-- [x] Add trace persistence
-- [x] Add human review flow
-- [x] Add evaluation runner
-- [x] Build web demo UI
+```bash
+cd apps/api
+py -3.12 -m pytest tests
+```
 
 ## Current Status
 
-Foundation APIs are ready:
+Implemented:
 
-- [x] Repository skeleton
-- [x] FastAPI backend entry point
-- [x] Health check API
-- [x] React/Vite frontend skeleton
-- [x] Docker and Docker Compose skeleton
-- [x] Mock business APIs
-- [x] Ticket CRUD APIs
-- [x] Markdown SOP loading and retrieval APIs
-- [x] LangGraph ticket workflow for refund, logistics, and invoice scenarios
-- [x] In-memory trace persistence and trace query APIs
-- [x] Human review workflow for approve, edit, reject, and escalate actions
-- [x] YAML evaluation runner with regression cases
-- [x] React demo UI for ticket workflow, trace, and human review
+- Repository skeleton
+- FastAPI backend
+- React/Vite web demo
+- Mock business APIs
+- Ticket CRUD APIs
+- Markdown SOP loading and retrieval
+- LangGraph ticket workflow
+- Trace persistence and query APIs
+- Human review workflow
+- YAML evaluation runner
+
+Not yet implemented:
+
+- Persistent database storage
+- Real embedding/vector database
+- Real LLM integration
+- Real CRM/order/logistics integrations
+- Authentication and multi-tenant support
+
+## Troubleshooting
+
+### `py` is not available
+
+Use `python` instead:
+
+```bash
+python -m pip install -r apps/api/requirements.txt
+python -m uvicorn app.main:app --reload --app-dir apps/api
+```
+
+### `node` or `npm` is not available
+
+Install Node.js 20+ and restart your terminal.
+
+### Frontend cannot reach backend
+
+Make sure the backend is running at:
+
+```text
+http://localhost:8000
+```
+
+For Docker, keep this environment variable in `docker-compose.yml`:
+
+```text
+VITE_API_TARGET=http://api:8000
+```
+
+### Trace endpoint returns 404
+
+Run the Agent first:
+
+```text
+POST /api/tickets/{ticket_id}/run
+```
+
+Trace is created after workflow execution.
+
+## Roadmap
+
+- Add SQLite/PostgreSQL persistence
+- Replace keyword SOP retrieval with Chroma or Qdrant
+- Add real LLM prompt nodes
+- Add authentication
+- Add OpenTelemetry or LangSmith tracing
+- Add GitHub Actions for tests and evals
+- Add screenshots and demo GIF
+
