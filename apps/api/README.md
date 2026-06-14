@@ -24,6 +24,7 @@ POST  /api/tickets
 GET   /api/tickets
 GET   /api/tickets/{ticket_id}
 PATCH /api/tickets/{ticket_id}
+POST  /api/tickets/{ticket_id}/run
 ```
 
 Create ticket example:
@@ -35,6 +36,12 @@ Create ticket example:
   "message": "我不想要了，帮我退款",
   "channel": "web"
 }
+```
+
+Run ticket workflow:
+
+```text
+POST /api/tickets/T00000001/run
 ```
 
 ## SOP APIs

@@ -65,6 +65,7 @@ POST  /api/tickets
 GET   /api/tickets
 GET   /api/tickets/{ticket_id}
 PATCH /api/tickets/{ticket_id}
+POST  /api/tickets/{ticket_id}/run
 ```
 
 SOP APIs:
@@ -143,7 +144,7 @@ support-sop-agent/
 - [x] Add mock business APIs
 - [x] Implement ticket CRUD
 - [x] Build SOP ingestion and retrieval
-- [ ] Implement LangGraph workflow
+- [x] Implement LangGraph workflow
 - [ ] Add trace persistence
 - [ ] Add human review flow
 - [ ] Add evaluation runner
@@ -160,3 +161,4 @@ Foundation APIs are ready:
 - [x] Mock business APIs
 - [x] Ticket CRUD APIs
 - [x] Markdown SOP loading and retrieval APIs
+- [x] LangGraph ticket workflow for refund, logistics, and invoice scenarios
