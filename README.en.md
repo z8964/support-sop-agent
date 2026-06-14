@@ -127,6 +127,8 @@ The frontend runs at:
 http://localhost:3000
 ```
 
+The demo UI supports creating a ticket, running the Agent workflow, viewing the decision and trace, and handling pending human reviews.
+
 ### Docker Compose
 
 ```bash
@@ -166,6 +168,7 @@ support-sop-agent/
 - [x] Add trace persistence
 - [x] Add human review flow
 - [x] Add evaluation runner
+- [x] Build web demo UI
 
 ## Current Status
 
@@ -183,3 +186,4 @@ Foundation APIs are ready:
 - [x] In-memory trace persistence and trace query APIs
 - [x] Human review workflow for approve, edit, reject, and escalate actions
 - [x] YAML evaluation runner with regression cases
+- [x] React demo UI for ticket workflow, trace, and human review
