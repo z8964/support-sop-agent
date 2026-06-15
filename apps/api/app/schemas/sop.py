@@ -24,17 +24,21 @@ class SopSearchRequest(BaseModel):
 class SopSearchHit(BaseModel):
     chunk: SopChunk
     score: float
+    vector_score: float
+    keyword_score: float
     matched_terms: list[str]
 
 
 class SopSearchResponse(BaseModel):
     query: str
     policy_type: str | None
+    retrieval_mode: str
     hits: list[SopSearchHit]
 
 
 class SopReindexResponse(BaseModel):
     status: str
     indexed_chunks: int
+    embedding_dimensions: int
+    retrieval_mode: str
     documents: list[SopDocumentSummary]
-

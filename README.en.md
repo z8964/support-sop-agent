@@ -61,7 +61,7 @@ intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision
 - Backend: FastAPI
 - Frontend: React + Vite
 - Agent workflow: LangGraph
-- SOP retrieval: Markdown policy loader + lightweight keyword retrieval
+- SOP retrieval: Markdown policy loader + in-memory vector hybrid retrieval
 - Memory: in-memory user preference and workflow outcome records
 - Storage: in-memory services for MVP
 - Evaluation: YAML cases + Python runner
@@ -297,6 +297,17 @@ POST /api/sops/reindex
 POST /api/sops/search
 ```
 
+The SOP RAG pipeline includes:
+
+- Markdown heading-based chunking
+- deterministic embedding generation
+- in-memory vector store
+- metadata filtering by `policy_type`
+- vector similarity search
+- keyword overlap scoring
+- hybrid ranking
+- source and section citations
+
 Review APIs:
 
 ```text
@@ -380,7 +391,7 @@ Implemented:
 - React/Vite web demo
 - Mock business APIs
 - Ticket CRUD APIs
-- Markdown SOP loading and retrieval
+- Markdown SOP loading and vector hybrid retrieval
 - LangGraph ticket workflow
 - Trace persistence and query APIs
 - Human review workflow
@@ -390,7 +401,7 @@ Implemented:
 Not yet implemented:
 
 - Persistent database storage
-- Real embedding/vector database
+- Persistent vector database such as Chroma, Qdrant, or pgvector
 - Real LLM integration
 - Real CRM/order/logistics integrations
 - Authentication and multi-tenant support
@@ -437,7 +448,7 @@ Trace is created after workflow execution.
 ## Roadmap
 
 - Add SQLite/PostgreSQL persistence
-- Replace keyword SOP retrieval with Chroma or Qdrant
+- Replace the default in-memory vector store with Chroma, Qdrant, or pgvector
 - Add real LLM prompt nodes
 - Replace in-memory memory with persistent or vector memory
 - Add authentication

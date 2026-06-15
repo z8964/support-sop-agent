@@ -61,7 +61,7 @@ intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision
 - Backend: FastAPI
 - Frontend: React + Vite
 - Agent workflow: LangGraph
-- SOP retrieval: Markdown policy loader + 轻量关键词检索
+- SOP retrieval: Markdown policy loader + 内存版向量混合检索
 - Memory: 内存版用户偏好和 workflow outcome 记录
 - Storage: MVP 阶段使用内存服务
 - Evaluation: YAML cases + Python runner
@@ -297,6 +297,17 @@ POST /api/sops/reindex
 POST /api/sops/search
 ```
 
+当前 SOP RAG 流程包括：
+
+- 基于 Markdown 标题的 chunking
+- 确定性 embedding 生成
+- 内存版向量库
+- 基于 `policy_type` 的 metadata 过滤
+- 向量相似度检索
+- 关键词重合打分
+- hybrid ranking
+- source 和 section 引用
+
 人工审核 API：
 
 ```text
@@ -380,7 +391,7 @@ py -3.12 -m pytest tests
 - React/Vite 前端 Demo
 - Mock 业务 API
 - 工单 CRUD API
-- Markdown SOP 加载与检索
+- Markdown SOP 加载与向量混合检索
 - LangGraph 工单工作流
 - Trace 持久化与查询 API
 - 人工审核流程
@@ -390,7 +401,7 @@ py -3.12 -m pytest tests
 暂未实现：
 
 - 数据库持久化
-- 真实 embedding / 向量数据库
+- Chroma、Qdrant 或 pgvector 等持久化向量数据库
 - 真实 LLM 集成
 - 真实 CRM / 订单 / 物流系统集成
 - 认证和多租户
@@ -437,7 +448,7 @@ POST /api/tickets/{ticket_id}/run
 ## Roadmap
 
 - 接入 SQLite / PostgreSQL 持久化
-- 将关键词 SOP 检索替换为 Chroma 或 Qdrant
+- 将默认内存向量库替换为 Chroma、Qdrant 或 pgvector
 - 增加真实 LLM Prompt 节点
 - 将内存版 Memory 替换为持久化或向量记忆
 - 增加认证

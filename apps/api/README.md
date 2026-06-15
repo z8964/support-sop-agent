@@ -129,6 +129,15 @@ Search example:
 }
 ```
 
+The SOP service uses vector hybrid retrieval:
+
+- chunk Markdown SOP files by section
+- generate deterministic embeddings
+- store chunks in an in-memory vector store
+- filter by `policy_type`
+- combine vector score and keyword score
+- return source/section citations
+
 ## Mock Business APIs
 
 ```text
