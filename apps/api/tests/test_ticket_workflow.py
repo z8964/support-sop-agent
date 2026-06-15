@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.memory_service import memory_service
 from app.services.ticket_service import ticket_service
 from app.services.trace_service import trace_service
 
@@ -11,6 +12,7 @@ client = TestClient(app)
 def setup_function() -> None:
     ticket_service.reset()
     trace_service.reset()
+    memory_service.reset()
 
 
 def test_run_shipped_refund_workflow() -> None:
@@ -37,6 +39,7 @@ def test_run_shipped_refund_workflow() -> None:
     assert [step["node"] for step in body["trace"]] == [
         "intent_agent",
         "context_builder",
+        "memory_retriever",
         "sop_retriever",
         "decision_agent",
         "reply_writer",
@@ -56,6 +59,7 @@ def test_run_shipped_refund_workflow() -> None:
     assert [step["node"] for step in trace["steps"]] == [
         "intent_agent",
         "context_builder",
+        "memory_retriever",
         "sop_retriever",
         "decision_agent",
         "reply_writer",

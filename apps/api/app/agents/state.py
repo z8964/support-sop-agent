@@ -8,6 +8,7 @@ class TicketWorkflowState(TypedDict, total=False):
     message: str
     intent: dict[str, Any]
     context: dict[str, Any]
+    memory: dict[str, Any]
     sop_matches: list[dict[str, Any]]
     decision: dict[str, Any]
     draft_reply: str | None
@@ -17,4 +18,3 @@ class TicketWorkflowState(TypedDict, total=False):
     need_human_review: bool
     missing_fields: list[str]
     trace: list[dict[str, Any]]
-

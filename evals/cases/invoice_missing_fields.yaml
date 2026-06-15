@@ -12,9 +12,9 @@ expected:
   decision: request_invoice_reissue_information
   tools_called:
     - context_builder
+    - memory_retriever
     - sop_retriever
   should_include:
     - 发票抬头
     - 税号
     - 接收邮箱
-

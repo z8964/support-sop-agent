@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.routes.health import router as health_router
+from app.routes.memory import router as memory_router
 from app.routes.mock import router as mock_router
 from app.routes.reviews import router as reviews_router
 from app.routes.sops import router as sops_router
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(memory_router)
 app.include_router(mock_router)
 app.include_router(reviews_router)
 app.include_router(sops_router)

@@ -24,7 +24,8 @@ Support SOP Agent 是一个开源客服工单工作流 Agent。它可以基于 S
 5. 生成面向客户的回复。
 6. 保存执行轨迹。
 7. 将高风险工单转入人工审核。
-8. 通过 YAML 用例进行回归评估。
+8. 读取和写入用户级记忆。
+9. 通过 YAML 用例进行回归评估。
 
 ## 架构
 
@@ -38,9 +39,12 @@ flowchart TD
     F --> G["Intent Node"]
     G --> H["Context Builder"]
     H --> I["SOP Retriever"]
+    H --> P["Memory Retriever"]
+    P --> I["SOP Retriever"]
     I --> J["Decision Agent"]
     J --> K["Reply Writer"]
     K --> L["Ticket Update"]
+    L --> Q["Memory Writer"]
     L --> M["Trace Service"]
     B --> N["Human Review APIs"]
     B --> O["Evaluation Runner"]
@@ -49,7 +53,7 @@ flowchart TD
 工作流节点：
 
 ```text
-intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
+intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
 ```
 
 ## 技术栈
@@ -58,6 +62,7 @@ intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writ
 - Frontend: React + Vite
 - Agent workflow: LangGraph
 - SOP retrieval: Markdown policy loader + 轻量关键词检索
+- Memory: 内存版用户偏好和 workflow outcome 记录
 - Storage: MVP 阶段使用内存服务
 - Evaluation: YAML cases + Python runner
 - DevOps: Docker Compose
@@ -300,6 +305,13 @@ POST /api/reviews/{ticket_id}
 GET  /api/reviews/{ticket_id}
 ```
 
+Memory API：
+
+```text
+GET  /api/memory/users/{user_id}
+POST /api/memory
+```
+
 Mock 业务 API：
 
 ```text
@@ -372,6 +384,7 @@ py -3.12 -m pytest tests
 - LangGraph 工单工作流
 - Trace 持久化与查询 API
 - 人工审核流程
+- 用户记忆读取和工作流结果写入
 - YAML 评估 runner
 
 暂未实现：
@@ -426,6 +439,7 @@ POST /api/tickets/{ticket_id}/run
 - 接入 SQLite / PostgreSQL 持久化
 - 将关键词 SOP 检索替换为 Chroma 或 Qdrant
 - 增加真实 LLM Prompt 节点
+- 将内存版 Memory 替换为持久化或向量记忆
 - 增加认证
 - 接入 OpenTelemetry 或 LangSmith tracing
 - 添加 GitHub Actions 跑测试和评估

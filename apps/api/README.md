@@ -77,6 +77,26 @@ Submit review example:
 }
 ```
 
+## Memory APIs
+
+```text
+GET  /api/memory/users/{user_id}
+POST /api/memory
+```
+
+Create memory example:
+
+```json
+{
+  "user_id": "U1001",
+  "type": "user_preference",
+  "content": "Customer prefers concise replies.",
+  "metadata": {
+    "source": "manual"
+  }
+}
+```
+
 ## Evaluation
 
 Run from repository root:

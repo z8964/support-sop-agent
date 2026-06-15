@@ -12,8 +12,8 @@ expected:
   decision: create_logistics_follow_up
   tools_called:
     - context_builder
+    - memory_retriever
     - sop_retriever
   should_include:
     - 物流
     - 跟进
-
