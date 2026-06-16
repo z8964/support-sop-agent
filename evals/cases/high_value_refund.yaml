@@ -12,5 +12,5 @@ expected:
   decision: cancel_unshipped_order
   tools_called:
     - context_builder
+    - memory_retriever
     - sop_retriever
-

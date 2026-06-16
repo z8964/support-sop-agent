@@ -1,10 +1,15 @@
 from typing import Any
 
-from langgraph.graph import END, StateGraph
+try:
+    from langgraph.graph import END, StateGraph
+except ImportError:  # Allows the Windows EXE build to use a lighter fallback.
+    END = "__end__"
+    StateGraph = None  # type: ignore[assignment]
 
 from app.agents.state import TicketWorkflowState
 from app.config import get_settings
 from app.schemas.ticket import RiskLevel, TicketIntent, TicketStatus, TicketUpdate
+from app.services.memory_service import memory_service
 from app.services.mock_data import LOGISTICS, ORDERS, TICKET_HISTORY, USERS
 from app.services.sop_service import sop_service
 from app.services.ticket_service import ticket_service
@@ -20,6 +25,7 @@ def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
         "message": ticket.message,
         "trace": [],
         "context": {},
+        "memory": {},
         "sop_matches": [],
         "missing_fields": [],
         "need_human_review": False,
@@ -32,9 +38,13 @@ def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
 
 
 def _build_graph():
+    if StateGraph is None:
+        return _SequentialTicketWorkflow()
+
     workflow = StateGraph(TicketWorkflowState)
     workflow.add_node("intent", _intent_node)
     workflow.add_node("context", _context_node)
+    workflow.add_node("memory", _memory_retriever_node)
     workflow.add_node("sop", _sop_node)
     workflow.add_node("decision", _decision_node)
     workflow.add_node("reply", _reply_node)
@@ -42,13 +52,29 @@ def _build_graph():
 
     workflow.set_entry_point("intent")
     workflow.add_edge("intent", "context")
-    workflow.add_edge("context", "sop")
+    workflow.add_edge("context", "memory")
+    workflow.add_edge("memory", "sop")
     workflow.add_edge("sop", "decision")
     workflow.add_edge("decision", "reply")
     workflow.add_edge("reply", "persist")
     workflow.add_edge("persist", END)
 
     return workflow.compile()
+
+
+class _SequentialTicketWorkflow:
+    def invoke(self, state: TicketWorkflowState) -> TicketWorkflowState:
+        for node in (
+            _intent_node,
+            _context_node,
+            _memory_retriever_node,
+            _sop_node,
+            _decision_node,
+            _reply_node,
+            _persist_node,
+        ):
+            state = node(state)
+        return state
 
 
 def _intent_node(state: TicketWorkflowState) -> TicketWorkflowState:
@@ -119,6 +145,18 @@ def _context_node(state: TicketWorkflowState) -> TicketWorkflowState:
     )
 
 
+def _memory_retriever_node(state: TicketWorkflowState) -> TicketWorkflowState:
+    memory = memory_service.build_user_context(state["user_id"])
+    output = {"memory": memory}
+    return _merge(
+        state,
+        output,
+        "memory_retriever",
+        {"user_id": state["user_id"]},
+        output,
+    )
+
+
 def _sop_node(state: TicketWorkflowState) -> TicketWorkflowState:
     intent = state["intent"]["intent"]
     policy_type = _policy_type_for_intent(intent)
@@ -159,6 +197,7 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
     context = state.get("context", {})
     order = context.get("order")
     user = context.get("user")
+    memory_summary = state.get("memory", {}).get("summary", "")
     missing_fields = state.get("missing_fields", [])
 
     decision = {
@@ -186,7 +225,7 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
         order_status = order.get("status")
         high_risk = amount > settings.high_amount_threshold or bool(
             user and user.get("is_vip")
-        )
+        ) or "manual confirmation" in memory_summary.lower()
         if order_status == "shipped":
             decision = {
                 "decision": "suggest_reject_delivery_or_return_after_receipt",
@@ -313,7 +352,17 @@ def _persist_node(state: TicketWorkflowState) -> TicketWorkflowState:
         final_reply=state.get("final_reply"),
     )
     ticket = ticket_service.update_ticket(state["ticket_id"], ticket_update)
-    output = {"ticket": ticket.model_dump(mode="json")}
+    memory_record = memory_service.write_workflow_outcome(
+        user_id=state["user_id"],
+        ticket_id=state["ticket_id"],
+        intent=state["intent"]["intent"],
+        status=state["ticket_status"],
+        decision=state["decision"]["decision"],
+    )
+    output = {
+        "ticket": ticket.model_dump(mode="json"),
+        "memory": memory_record.model_dump(mode="json"),
+    }
     final_state = _merge(
         state,
         {},
@@ -351,6 +400,7 @@ def _compact_state(state: TicketWorkflowState) -> dict[str, Any]:
     return {
         "intent": state.get("intent"),
         "context": state.get("context"),
+        "memory": state.get("memory"),
         "sop_matches": state.get("sop_matches"),
         "missing_fields": state.get("missing_fields"),
     }

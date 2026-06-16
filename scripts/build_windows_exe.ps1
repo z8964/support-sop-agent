@@ -48,7 +48,14 @@ Invoke-Checked {
     --exclude-module paramiko `
     --exclude-module nacl `
     --exclude-module bcrypt `
+    --exclude-module langgraph `
+    --exclude-module langchain `
+    --exclude-module langchain_core `
+    --exclude-module langchain_protocol `
+    --exclude-module langsmith `
     --exclude-module psutil `
+    --exclude-module requests `
+    --exclude-module requests_toolbelt `
     --exclude-module scipy `
     --exclude-module sphinx `
     --exclude-module pytest `
@@ -59,3 +66,8 @@ Invoke-Checked {
 Write-Host ""
 Write-Host "Build complete:"
 Write-Host "$Root\dist\support-sop-agent.exe"
+
+$LiteZip = Join-Path $Root "dist\support-sop-agent-v0.1.1-windows-x64-lite.zip"
+Compress-Archive -Path "$Root\dist\support-sop-agent.exe" -DestinationPath $LiteZip -Force
+Write-Host "Lite package:"
+Write-Host $LiteZip

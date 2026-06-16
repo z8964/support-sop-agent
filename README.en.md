@@ -24,7 +24,8 @@ For each ticket, the workflow can:
 5. Generate a customer-facing reply.
 6. Save an execution trace.
 7. Route high-risk cases to human review.
-8. Run YAML-based regression evaluations.
+8. Retrieve and write user-level memories.
+9. Run YAML-based regression evaluations.
 
 ## Architecture
 
@@ -38,9 +39,12 @@ flowchart TD
     F --> G["Intent Node"]
     G --> H["Context Builder"]
     H --> I["SOP Retriever"]
+    H --> P["Memory Retriever"]
+    P --> I["SOP Retriever"]
     I --> J["Decision Agent"]
     J --> K["Reply Writer"]
     K --> L["Ticket Update"]
+    L --> Q["Memory Writer"]
     L --> M["Trace Service"]
     B --> N["Human Review APIs"]
     B --> O["Evaluation Runner"]
@@ -49,7 +53,7 @@ flowchart TD
 Workflow nodes:
 
 ```text
-intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
+intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision_agent -> reply_writer -> ticket_update
 ```
 
 ## Tech Stack
@@ -58,6 +62,7 @@ intent_agent -> context_builder -> sop_retriever -> decision_agent -> reply_writ
 - Frontend: React + Vite
 - Agent workflow: LangGraph
 - SOP retrieval: Markdown policy loader + lightweight keyword retrieval
+- Memory: in-memory user preference and workflow outcome records
 - Storage: in-memory services for MVP
 - Evaluation: YAML cases + Python runner
 - DevOps: Docker Compose
@@ -136,6 +141,7 @@ Output:
 
 ```text
 dist\support-sop-agent.exe
+dist\support-sop-agent-v0.1.1-windows-x64-lite.zip
 ```
 
 Run:
@@ -153,6 +159,7 @@ http://127.0.0.1:8000/docs
 Notes:
 
 - This EXE packages the backend API and SOP documents.
+- The packaging script also creates a lite zip that is small enough for 25 MB upload limits.
 - The React web UI is not embedded yet. To use the web UI, run it separately with `npm run dev` or Docker Compose.
 - You can change host or port with `SUPPORT_SOP_HOST` and `SUPPORT_SOP_PORT`.
 
@@ -298,6 +305,13 @@ POST /api/reviews/{ticket_id}
 GET  /api/reviews/{ticket_id}
 ```
 
+Memory APIs:
+
+```text
+GET  /api/memory/users/{user_id}
+POST /api/memory
+```
+
 Mock business APIs:
 
 ```text
@@ -370,6 +384,7 @@ Implemented:
 - LangGraph ticket workflow
 - Trace persistence and query APIs
 - Human review workflow
+- User memory retrieval and workflow outcome writing
 - YAML evaluation runner
 
 Not yet implemented:
@@ -424,6 +439,7 @@ Trace is created after workflow execution.
 - Add SQLite/PostgreSQL persistence
 - Replace keyword SOP retrieval with Chroma or Qdrant
 - Add real LLM prompt nodes
+- Replace in-memory memory with persistent or vector memory
 - Add authentication
 - Add OpenTelemetry or LangSmith tracing
 - Add GitHub Actions for tests and evals

@@ -12,10 +12,10 @@ expected:
   decision: suggest_reject_delivery_or_return_after_receipt
   tools_called:
     - context_builder
+    - memory_retriever
     - sop_retriever
   should_include:
     - 已经发货
     - 拒收
   should_not_include:
     - 可以直接退款
-
