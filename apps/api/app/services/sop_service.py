@@ -1,5 +1,5 @@
-import re
 import os
+import re
 from pathlib import Path
 
 from app.schemas.sop import (
@@ -9,6 +9,8 @@ from app.schemas.sop import (
     SopSearchHit,
     SopSearchResponse,
 )
+from app.services.embedding_service import embedding_service
+from app.services.vector_store import VectorDocument, vector_store
 
 
 POLICY_TYPE_BY_FILE = {
@@ -39,13 +41,35 @@ class SopService:
             chunks.extend(self._parse_markdown_file(markdown_file, policy_type))
 
         self._chunks = chunks
+        vector_store.reset()
+        vector_store.upsert(
+            [
+                VectorDocument(
+                    id=chunk.id,
+                    content=chunk.content,
+                    metadata={
+                        "source": chunk.source,
+                        "section": chunk.section,
+                        "policy_type": chunk.policy_type,
+                    },
+                    embedding=embedding_service.embed(self._embedding_text(chunk)),
+                )
+                for chunk in chunks
+            ]
+        )
+
         return SopReindexResponse(
             status="ok",
             indexed_chunks=len(chunks),
+            embedding_dimensions=embedding_service.dimensions,
+            retrieval_mode="vector_hybrid",
             documents=self.list_documents(),
         )
 
     def list_documents(self) -> list[SopDocumentSummary]:
+        if not self._chunks:
+            self.reindex()
+
         summaries: dict[tuple[str, str], int] = {}
         for chunk in self._chunks:
             key = (chunk.source, chunk.policy_type)
@@ -66,41 +90,49 @@ class SopService:
         policy_type: str | None = None,
         top_k: int = 4,
     ) -> SopSearchResponse:
-        if not self._chunks:
+        if not self._chunks or vector_store.count() == 0:
             self.reindex()
 
+        query_embedding = embedding_service.embed(query)
         query_terms = self._tokenize(query)
-        candidates = [
-            chunk
-            for chunk in self._chunks
-            if policy_type is None or chunk.policy_type == policy_type
-        ]
+        vector_results = vector_store.search(
+            query_embedding=query_embedding,
+            top_k=max(top_k * 4, top_k),
+            where={"policy_type": policy_type} if policy_type else None,
+        )
 
+        chunk_by_id = {chunk.id: chunk for chunk in self._chunks}
         hits: list[SopSearchHit] = []
-        for chunk in candidates:
+        for result in vector_results:
+            chunk = chunk_by_id[result.document.id]
             chunk_terms = self._tokenize(
                 f"{chunk.policy_type} {chunk.section} {chunk.content}"
             )
             matched_terms = sorted(query_terms.intersection(chunk_terms))
-            score = self._score(query_terms, chunk_terms, chunk)
-            if score > 0:
-                hits.append(
-                    SopSearchHit(
-                        chunk=chunk,
-                        score=score,
-                        matched_terms=matched_terms,
-                    )
+            keyword_score = self._keyword_score(query_terms, chunk_terms, chunk)
+            hybrid_score = self._hybrid_score(result.vector_score, keyword_score)
+
+            hits.append(
+                SopSearchHit(
+                    chunk=chunk,
+                    score=hybrid_score,
+                    vector_score=round(result.vector_score, 4),
+                    keyword_score=round(keyword_score, 4),
+                    matched_terms=matched_terms,
                 )
+            )
 
         hits.sort(key=lambda hit: hit.score, reverse=True)
         return SopSearchResponse(
             query=query,
             policy_type=policy_type,
+            retrieval_mode="vector_hybrid",
             hits=hits[:top_k],
         )
 
     def reset(self) -> None:
         self._chunks = []
+        vector_store.reset()
 
     def _parse_markdown_file(self, markdown_file: Path, policy_type: str) -> list[SopChunk]:
         text = markdown_file.read_text(encoding="utf-8")
@@ -137,21 +169,31 @@ class SopService:
         flush()
         return chunks
 
+    def _embedding_text(self, chunk: SopChunk) -> str:
+        return f"{chunk.policy_type}\n{chunk.source}\n{chunk.section}\n{chunk.content}"
+
     def _tokenize(self, text: str) -> set[str]:
         normalized = text.lower()
-        return {
+        latin = {
             token
             for token in re.findall(r"[a-z0-9_]+", normalized)
             if len(token) > 1
         }
+        cjk = set(re.findall(r"[\u4e00-\u9fff]", normalized))
+        return latin.union(cjk)
 
-    def _score(self, query_terms: set[str], chunk_terms: set[str], chunk: SopChunk) -> float:
+    def _keyword_score(
+        self,
+        query_terms: set[str],
+        chunk_terms: set[str],
+        chunk: SopChunk,
+    ) -> float:
         if not query_terms:
-            return 0
+            return 0.0
 
         overlap = query_terms.intersection(chunk_terms)
         if not overlap:
-            return 0
+            return 0.0
 
         section_terms = self._tokenize(chunk.section)
         policy_terms = self._tokenize(chunk.policy_type)
@@ -159,7 +201,13 @@ class SopService:
         policy_boost = len(overlap.intersection(policy_terms)) * 1.0
         coverage = len(overlap) / len(query_terms)
 
-        return round(len(overlap) + section_boost + policy_boost + coverage, 4)
+        return len(overlap) + section_boost + policy_boost + coverage
+
+    def _hybrid_score(self, vector_score: float, keyword_score: float) -> float:
+        normalized_keyword = min(keyword_score / 8.0, 1.0)
+        normalized_vector = (vector_score + 1.0) / 2.0
+        return round((normalized_vector * 0.7) + (normalized_keyword * 0.3), 4)
 
 
 sop_service = SopService()
+

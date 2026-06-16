@@ -18,6 +18,8 @@ def test_reindex_sops() -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["indexed_chunks"] >= 9
+    assert body["embedding_dimensions"] == 384
+    assert body["retrieval_mode"] == "vector_hybrid"
     assert {doc["policy_type"] for doc in body["documents"]} == {
         "refund",
         "logistics",
@@ -47,9 +49,12 @@ def test_search_refund_policy() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["policy_type"] == "refund"
+    assert body["retrieval_mode"] == "vector_hybrid"
     assert len(body["hits"]) >= 1
     assert body["hits"][0]["chunk"]["section"] == "Shipped Orders"
     assert body["hits"][0]["chunk"]["source"] == "refund_policy.md"
+    assert body["hits"][0]["vector_score"] > 0
+    assert "score" in body["hits"][0]
 
 
 def test_search_invoice_policy() -> None:
@@ -66,6 +71,21 @@ def test_search_invoice_policy() -> None:
     assert body["hits"][0]["chunk"]["section"] == "Invoice Reissue"
 
 
+def test_search_chinese_refund_query() -> None:
+    response = client.post(
+        "/api/sops/search",
+        json={
+            "query": "包裹已经发货了还能直接退款吗 应该拒收吗",
+            "policy_type": "refund",
+            "top_k": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["hits"][0]["chunk"]["section"] == "Shipped Orders"
+
+
 def test_search_respects_top_k() -> None:
     response = client.post(
         "/api/sops/search",
@@ -77,4 +97,3 @@ def test_search_respects_top_k() -> None:
 
     assert response.status_code == 200
     assert len(response.json()["hits"]) == 1
-
