@@ -168,6 +168,23 @@ After changing the provider, model, dimensions, or SOP files, call:
 POST /api/sops/reindex
 ```
 
+## Agent Workflow Reliability
+
+The ticket workflow now provides:
+
+- intent-based conditional routing
+- early exit when required fields are missing
+- intent-specific business tool selection
+- bounded business tool retries
+- safe human-review fallback after tool or RAG failures
+- a configurable workflow step budget
+- trace records for tool attempts, degraded nodes, and workflow guard failures
+
+```env
+AGENT_TOOL_MAX_ATTEMPTS=3
+AGENT_MAX_STEPS=10
+```
+
 ## Mock Business APIs
 
 ```text

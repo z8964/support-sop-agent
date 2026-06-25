@@ -9,11 +9,22 @@ except ImportError:  # Allows the Windows EXE build to use a lighter fallback.
 from app.agents.state import TicketWorkflowState
 from app.config import get_settings
 from app.schemas.ticket import RiskLevel, TicketIntent, TicketStatus, TicketUpdate
+from app.services.business_tool_service import (
+    ToolExecutionError,
+    ToolResult,
+    business_tool_service,
+)
 from app.services.memory_service import memory_service
-from app.services.mock_data import LOGISTICS, ORDERS, TICKET_HISTORY, USERS
 from app.services.sop_service import sop_service
 from app.services.ticket_service import ticket_service
 from app.services.trace_service import trace_service
+
+
+class WorkflowStepLimitError(RuntimeError):
+    def __init__(self, state: TicketWorkflowState, max_steps: int) -> None:
+        super().__init__(f"Agent workflow exceeded AGENT_MAX_STEPS={max_steps}")
+        self.state = state
+        self.max_steps = max_steps
 
 
 def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
@@ -28,13 +39,29 @@ def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
         "memory": {},
         "sop_matches": [],
         "missing_fields": [],
+        "workflow_route": "unclassified",
+        "tool_errors": [],
+        "step_count": 0,
         "need_human_review": False,
         "risk_level": RiskLevel.low.value,
         "ticket_status": TicketStatus.processing.value,
     }
 
     graph = _build_graph()
-    return graph.invoke(initial_state)
+    try:
+        return graph.invoke(initial_state)
+    except WorkflowStepLimitError as exc:
+        return _finalize_workflow_failure(
+            exc.state,
+            reason=str(exc),
+            failure_type="step_limit_exceeded",
+        )
+    except Exception as exc:
+        return _finalize_workflow_failure(
+            initial_state,
+            reason=str(exc),
+            failure_type="unexpected_workflow_error",
+        )
 
 
 def _build_graph():
@@ -51,9 +78,23 @@ def _build_graph():
     workflow.add_node("persist", _persist_node)
 
     workflow.set_entry_point("intent")
-    workflow.add_edge("intent", "context")
+    workflow.add_conditional_edges(
+        "intent",
+        _route_after_intent,
+        {
+            "needs_information": "decision",
+            "business_flow": "context",
+        },
+    )
     workflow.add_edge("context", "memory")
-    workflow.add_edge("memory", "sop")
+    workflow.add_conditional_edges(
+        "memory",
+        _route_after_memory,
+        {
+            "knowledge_flow": "sop",
+            "direct_decision": "decision",
+        },
+    )
     workflow.add_edge("sop", "decision")
     workflow.add_edge("decision", "reply")
     workflow.add_edge("reply", "persist")
@@ -64,16 +105,15 @@ def _build_graph():
 
 class _SequentialTicketWorkflow:
     def invoke(self, state: TicketWorkflowState) -> TicketWorkflowState:
-        for node in (
-            _intent_node,
-            _context_node,
-            _memory_retriever_node,
-            _sop_node,
-            _decision_node,
-            _reply_node,
-            _persist_node,
-        ):
-            state = node(state)
+        state = _intent_node(state)
+        if _route_after_intent(state) == "business_flow":
+            state = _context_node(state)
+            state = _memory_retriever_node(state)
+            if _route_after_memory(state) == "knowledge_flow":
+                state = _sop_node(state)
+        state = _decision_node(state)
+        state = _reply_node(state)
+        state = _persist_node(state)
         return state
 
 
@@ -112,6 +152,7 @@ def _intent_node(state: TicketWorkflowState) -> TicketWorkflowState:
             "missing_fields": missing_fields,
         },
         "missing_fields": missing_fields,
+        "workflow_route": _workflow_route(intent, missing_fields),
     }
     return _merge(state, output, "intent_agent", {"message": state["message"]}, output)
 
@@ -120,28 +161,67 @@ def _context_node(state: TicketWorkflowState) -> TicketWorkflowState:
     context: dict[str, Any] = {
         "order": None,
         "logistics": None,
-        "user": USERS.get(state["user_id"]).model_dump()
-        if state["user_id"] in USERS
-        else None,
-        "ticket_history": [
-            item.model_dump() for item in TICKET_HISTORY.get(state["user_id"], [])
-        ],
+        "user": None,
+        "ticket_history": [],
     }
+    tool_calls: list[dict[str, Any]] = []
+    tool_errors = list(state.get("tool_errors", []))
+    intent = state["intent"]["intent"]
+
+    def run_tool(call: Any) -> Any:
+        try:
+            result: ToolResult = call()
+            tool_calls.append(
+                {
+                    "tool": result.tool_name,
+                    "attempts": result.attempts,
+                    "status": "success",
+                }
+            )
+            return result.value
+        except ToolExecutionError as exc:
+            error = {
+                "tool": exc.tool_name,
+                "attempts": exc.attempts,
+                "error": str(exc.cause),
+            }
+            tool_calls.append({**error, "status": "failed"})
+            tool_errors.append(error)
+            return None
+
+    context["user"] = run_tool(
+        lambda: business_tool_service.get_user(state["user_id"])
+    )
+    context["ticket_history"] = run_tool(
+        lambda: business_tool_service.get_ticket_history(state["user_id"])
+    )
 
     order_id = state.get("order_id")
-    if order_id:
-        order = ORDERS.get(order_id)
-        logistics = LOGISTICS.get(order_id)
-        context["order"] = order.model_dump() if order else None
-        context["logistics"] = logistics.model_dump() if logistics else None
+    if order_id and intent in {
+        TicketIntent.refund_request.value,
+        TicketIntent.logistics_issue.value,
+        TicketIntent.invoice_request.value,
+    }:
+        context["order"] = run_tool(
+            lambda: business_tool_service.get_order(order_id)
+        )
+    if order_id and intent == TicketIntent.logistics_issue.value:
+        context["logistics"] = run_tool(
+            lambda: business_tool_service.get_logistics(order_id)
+        )
 
-    output = {"context": context}
+    output = {
+        "context": context,
+        "tool_errors": tool_errors,
+        "tool_calls": tool_calls,
+    }
     return _merge(
         state,
         output,
         "context_builder",
         {"user_id": state["user_id"], "order_id": order_id},
         output,
+        status="degraded" if tool_errors else "success",
     )
 
 
@@ -165,11 +245,30 @@ def _sop_node(state: TicketWorkflowState) -> TicketWorkflowState:
     if order:
         query_parts.append(str(order.get("status")))
 
-    search = sop_service.search(
-        query=" ".join(query_parts),
-        policy_type=policy_type,
-        top_k=3,
-    )
+    try:
+        search = sop_service.search(
+            query=" ".join(query_parts),
+            policy_type=policy_type,
+            top_k=3,
+        )
+    except Exception as exc:
+        tool_errors = [
+            *state.get("tool_errors", []),
+            {
+                "tool": "search_sop",
+                "attempts": 1,
+                "error": str(exc),
+            },
+        ]
+        output = {"sop_matches": [], "tool_errors": tool_errors}
+        return _merge(
+            state,
+            output,
+            "sop_retriever",
+            {"query": " ".join(query_parts), "policy_type": policy_type},
+            output,
+            status="degraded",
+        )
     matches = [
         {
             "source": hit.chunk.source,
@@ -199,6 +298,7 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
     user = context.get("user")
     memory_summary = state.get("memory", {}).get("summary", "")
     missing_fields = state.get("missing_fields", [])
+    tool_errors = state.get("tool_errors", [])
 
     decision = {
         "decision": "needs_manual_review",
@@ -220,6 +320,22 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
         ticket_status = TicketStatus.waiting_customer_info.value
         risk_level = RiskLevel.low.value
         need_human_review = False
+    elif tool_errors:
+        failed_tools = ", ".join(
+            sorted({str(error["tool"]) for error in tool_errors})
+        )
+        decision = {
+            "decision": "defer_due_to_tool_failure",
+            "reason": f"Required business tools failed: {failed_tools}.",
+            "next_actions": [
+                "Send the ticket to human review.",
+                "Retry the failed tools before taking business action.",
+            ],
+            "policy_refs": _policy_refs(state),
+        }
+        ticket_status = TicketStatus.pending_human_review.value
+        risk_level = RiskLevel.medium.value
+        need_human_review = True
     elif intent == TicketIntent.refund_request.value and order:
         amount = float(order.get("amount", 0))
         order_status = order.get("status")
@@ -374,6 +490,71 @@ def _persist_node(state: TicketWorkflowState) -> TicketWorkflowState:
     return final_state
 
 
+def _finalize_workflow_failure(
+    state: TicketWorkflowState,
+    reason: str,
+    failure_type: str,
+) -> TicketWorkflowState:
+    decision = {
+        "decision": "defer_due_to_workflow_failure",
+        "reason": reason,
+        "next_actions": ["Send the ticket to human review."],
+        "policy_refs": _policy_refs(state),
+    }
+    reply = (
+        "We could not complete the automated workflow safely. "
+        "A human agent will continue processing this ticket."
+    )
+    trace = [
+        *state.get("trace", []),
+        {
+            "node": "workflow_guard",
+            "input": {
+                "step_count": state.get("step_count", 0),
+                "failure_type": failure_type,
+            },
+            "output": {"reason": reason, "fallback": "human_review"},
+            "status": "failed",
+        },
+    ]
+    ticket = ticket_service.update_ticket(
+        state["ticket_id"],
+        TicketUpdate(
+            status=TicketStatus.pending_human_review,
+            intent=TicketIntent(
+                state.get("intent", {}).get(
+                    "intent", TicketIntent.unknown.value
+                )
+            ),
+            risk_level=RiskLevel.medium,
+            need_human_review=True,
+            final_reply=reply,
+        ),
+    )
+    final_state: TicketWorkflowState = {
+        **state,
+        "intent": state.get(
+            "intent",
+            {
+                "intent": TicketIntent.unknown.value,
+                "confidence": 0.0,
+                "entities": {"order_id": state.get("order_id")},
+                "missing_fields": [],
+            },
+        ),
+        "decision": decision,
+        "ticket_status": TicketStatus.pending_human_review.value,
+        "risk_level": RiskLevel.medium.value,
+        "need_human_review": True,
+        "draft_reply": reply,
+        "final_reply": reply,
+        "ticket": ticket.model_dump(mode="json"),
+        "trace": trace,
+    }
+    trace_service.save_trace(state["ticket_id"], trace)
+    return final_state
+
+
 def _contains_any(text: str, keywords: list[str]) -> bool:
     return any(keyword in text for keyword in keywords)
 
@@ -384,6 +565,30 @@ def _policy_type_for_intent(intent: str) -> str | None:
         TicketIntent.logistics_issue.value: "logistics",
         TicketIntent.invoice_request.value: "invoice",
     }.get(intent)
+
+
+def _workflow_route(intent: str, missing_fields: list[str]) -> str:
+    if missing_fields:
+        return "needs_information"
+    if intent in {
+        TicketIntent.refund_request.value,
+        TicketIntent.logistics_issue.value,
+        TicketIntent.invoice_request.value,
+    }:
+        return "knowledge_flow"
+    return "direct_decision"
+
+
+def _route_after_intent(state: TicketWorkflowState) -> str:
+    if state.get("workflow_route") == "needs_information":
+        return "needs_information"
+    return "business_flow"
+
+
+def _route_after_memory(state: TicketWorkflowState) -> str:
+    if state.get("workflow_route") == "knowledge_flow":
+        return "knowledge_flow"
+    return "direct_decision"
 
 
 def _policy_refs(state: TicketWorkflowState) -> list[dict[str, str]]:
@@ -412,18 +617,24 @@ def _merge(
     node: str,
     step_input: dict[str, Any],
     step_output: dict[str, Any],
+    status: str = "success",
 ) -> TicketWorkflowState:
+    step_count = state.get("step_count", 0) + 1
+    max_steps = get_settings().agent_max_steps
+    if step_count > max_steps:
+        raise WorkflowStepLimitError(state, max_steps)
     trace = [
         *state.get("trace", []),
         {
             "node": node,
             "input": step_input,
             "output": step_output,
-            "status": "success",
+            "status": status,
         },
     ]
     return {
         **state,
         **updates,
+        "step_count": step_count,
         "trace": trace,
     }

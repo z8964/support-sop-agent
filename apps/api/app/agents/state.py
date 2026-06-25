@@ -17,4 +17,7 @@ class TicketWorkflowState(TypedDict, total=False):
     risk_level: str
     need_human_review: bool
     missing_fields: list[str]
+    workflow_route: str
+    tool_errors: list[dict[str, Any]]
+    step_count: int
     trace: list[dict[str, Any]]

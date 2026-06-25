@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     rag_vector_store_path: str = "./data/sop_vectors.sqlite3"
     rag_vector_weight: float = 0.7
     rag_keyword_weight: float = 0.3
+    agent_tool_max_attempts: int = 3
+    agent_max_steps: int = 10
     high_amount_threshold: int = 500
     low_confidence_threshold: float = 0.7
 

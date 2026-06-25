@@ -473,6 +473,24 @@ OPENAI_EMBEDDING_DIMENSIONS=1536
 POST /api/sops/reindex
 ```
 
+## Agent 工作流可靠性
+
+当前工作流会根据意图和信息完整度动态选择路径：
+
+- 缺少订单号等关键字段时直接请求补充信息，跳过业务查询和 SOP 检索
+- 退款、物流、发票进入对应的业务工具与知识检索流程
+- 投诉和未知意图跳过无关 SOP 检索，直接进入风险决策
+- 业务工具调用使用有限重试，记录工具名称、尝试次数和错误原因
+- 工具或 RAG 失败时降级到人工审核，不基于缺失数据继续执行
+- 使用步骤预算阻止异常长流程，超限后记录 `workflow_guard` Trace
+
+相关配置：
+
+```env
+AGENT_TOOL_MAX_ATTEMPTS=3
+AGENT_MAX_STEPS=10
+```
+
 ## Roadmap
 
 - 接入 SQLite / PostgreSQL 持久化
