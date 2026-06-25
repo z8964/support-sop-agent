@@ -19,5 +19,6 @@ class TicketWorkflowState(TypedDict, total=False):
     missing_fields: list[str]
     workflow_route: str
     tool_errors: list[dict[str, Any]]
+    action_results: list[dict[str, Any]]
     step_count: int
     trace: list[dict[str, Any]]

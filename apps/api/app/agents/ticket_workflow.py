@@ -9,9 +9,12 @@ except ImportError:  # Allows the Windows EXE build to use a lighter fallback.
 from app.agents.state import TicketWorkflowState
 from app.config import get_settings
 from app.schemas.ticket import RiskLevel, TicketIntent, TicketStatus, TicketUpdate
+from app.schemas.mock import EscalationCreate
 from app.services.business_tool_service import (
     ToolExecutionError,
+    ToolPermissionError,
     ToolResult,
+    ToolValidationError,
     business_tool_service,
 )
 from app.services.memory_service import memory_service
@@ -41,6 +44,7 @@ def run_ticket_workflow(ticket_id: str) -> TicketWorkflowState:
         "missing_fields": [],
         "workflow_route": "unclassified",
         "tool_errors": [],
+        "action_results": [],
         "step_count": 0,
         "need_human_review": False,
         "risk_level": RiskLevel.low.value,
@@ -74,6 +78,7 @@ def _build_graph():
     workflow.add_node("memory", _memory_retriever_node)
     workflow.add_node("sop", _sop_node)
     workflow.add_node("decision", _decision_node)
+    workflow.add_node("actions", _action_node)
     workflow.add_node("reply", _reply_node)
     workflow.add_node("persist", _persist_node)
 
@@ -96,7 +101,8 @@ def _build_graph():
         },
     )
     workflow.add_edge("sop", "decision")
-    workflow.add_edge("decision", "reply")
+    workflow.add_edge("decision", "actions")
+    workflow.add_edge("actions", "reply")
     workflow.add_edge("reply", "persist")
     workflow.add_edge("persist", END)
 
@@ -112,6 +118,7 @@ class _SequentialTicketWorkflow:
             if _route_after_memory(state) == "knowledge_flow":
                 state = _sop_node(state)
         state = _decision_node(state)
+        state = _action_node(state)
         state = _reply_node(state)
         state = _persist_node(state)
         return state
@@ -424,6 +431,81 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
         "need_human_review": need_human_review,
     }
     return _merge(state, output, "decision_agent", {"state": _compact_state(state)}, output)
+
+
+def _action_node(state: TicketWorkflowState) -> TicketWorkflowState:
+    action_results = list(state.get("action_results", []))
+    if not state.get("need_human_review"):
+        output = {
+            "action_results": action_results,
+            "executed_actions": [],
+        }
+        return _merge(
+            state,
+            output,
+            "action_executor",
+            {"decision": state["decision"]["decision"]},
+            output,
+        )
+
+    risk_level = state.get("risk_level", RiskLevel.medium.value)
+    escalation_risk = (
+        RiskLevel.high.value
+        if risk_level == RiskLevel.high.value
+        else RiskLevel.medium.value
+    )
+    try:
+        result = business_tool_service.create_escalation(
+            EscalationCreate(
+                ticket_id=state["ticket_id"],
+                reason=state["decision"]["decision"],
+                risk_level=escalation_risk,
+            ),
+            idempotency_key=f"ticket:{state['ticket_id']}:escalation",
+        )
+        action = {
+            "tool": result.tool_name,
+            "status": "success",
+            "attempts": result.attempts,
+            "audit_id": result.audit_id,
+            "idempotent_replay": result.idempotent_replay,
+            "result": result.value,
+        }
+        action_results.append(action)
+        output = {
+            "action_results": action_results,
+            "executed_actions": [action],
+        }
+        return _merge(
+            state,
+            output,
+            "action_executor",
+            {"decision": state["decision"]["decision"]},
+            output,
+        )
+    except (
+        ToolExecutionError,
+        ToolPermissionError,
+        ToolValidationError,
+    ) as exc:
+        action = {
+            "tool": "create_escalation",
+            "status": "failed",
+            "error": str(exc),
+        }
+        action_results.append(action)
+        output = {
+            "action_results": action_results,
+            "executed_actions": [action],
+        }
+        return _merge(
+            state,
+            output,
+            "action_executor",
+            {"decision": state["decision"]["decision"]},
+            output,
+            status="degraded",
+        )
 
 
 def _reply_node(state: TicketWorkflowState) -> TicketWorkflowState:

@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.business_tool_service import business_tool_service
 from app.services.review_service import review_service
 from app.services.ticket_service import ticket_service
 from app.services.trace_service import trace_service
@@ -13,6 +14,7 @@ def setup_function() -> None:
     ticket_service.reset()
     trace_service.reset()
     review_service.reset()
+    business_tool_service.reset()
 
 
 def _create_high_risk_ticket() -> dict:
@@ -124,4 +126,3 @@ def test_list_review_history() -> None:
     body = response.json()
     assert len(body) == 1
     assert body[0]["id"] == "R00000001"
-

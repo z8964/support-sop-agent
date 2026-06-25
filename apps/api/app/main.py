@@ -8,6 +8,7 @@ from app.routes.mock import router as mock_router
 from app.routes.reviews import router as reviews_router
 from app.routes.sops import router as sops_router
 from app.routes.tickets import router as tickets_router
+from app.routes.tools import router as tools_router
 
 
 settings = get_settings()
@@ -35,6 +36,7 @@ app.include_router(mock_router)
 app.include_router(reviews_router)
 app.include_router(sops_router)
 app.include_router(tickets_router)
+app.include_router(tools_router)
 
 
 @app.get("/")

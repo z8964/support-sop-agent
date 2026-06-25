@@ -336,6 +336,13 @@ GET  /mock/users/{user_id}/tickets
 POST /mock/escalations
 ```
 
+Tool audit API:
+
+```text
+GET /api/tools/audits
+GET /api/tools/audits?tool_name=create_escalation&status=success
+```
+
 ## Seed Data
 
 Useful order IDs:

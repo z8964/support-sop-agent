@@ -346,6 +346,13 @@ GET  /mock/users/{user_id}/tickets
 POST /mock/escalations
 ```
 
+工具审计 API：
+
+```text
+GET /api/tools/audits
+GET /api/tools/audits?tool_name=create_escalation&status=success
+```
+
 ## 样例数据
 
 常用订单 ID：
@@ -502,7 +509,24 @@ POST /api/sops/reindex
 ```env
 AGENT_TOOL_MAX_ATTEMPTS=3
 AGENT_MAX_STEPS=10
+TOOL_STORE_PATH=./data/tool_gateway.sqlite3
 ```
+
+## 工具调用安全
+
+Agent 通过统一 Tool Gateway 调用业务能力：
+
+- 每个工具声明 Pydantic 输入模型和输出类型
+- 调用前执行严格参数校验
+- 工具声明独立权限，例如 `order:read`、`logistics:read`、`escalation:write`
+- 查询工具和写操作工具使用不同权限
+- 写操作必须携带幂等键，防止工作流重试或重复运行造成重复执行
+- 仅业务执行异常进入有限重试，参数错误和权限错误立即失败
+- 每次调用记录工具、调用者、参数、权限、耗时、尝试次数、结果和错误
+- Agent 进入人工审核时，通过 `create_escalation` 创建升级单
+- 当前不允许 Agent 自动执行退款等资金操作
+
+同一工单重复运行时，升级工具会返回之前保存的结果，并在 Trace 和审计记录中标记 `idempotent_replay=true`。
 
 ## Memory 配置
 

@@ -18,6 +18,7 @@ def setup_function() -> None:
     ticket_service.reset()
     trace_service.reset()
     memory_service.reset()
+    business_tool_service.reset()
 
 
 def test_missing_order_routes_directly_to_information_request() -> None:
@@ -37,6 +38,7 @@ def test_missing_order_routes_directly_to_information_request() -> None:
     assert [step["node"] for step in body["trace"]] == [
         "intent_agent",
         "decision_agent",
+        "action_executor",
         "reply_writer",
         "ticket_update",
     ]
@@ -123,3 +125,28 @@ def test_step_budget_failure_is_persisted_and_sent_to_human_review(
 
     saved_ticket = client.get(f"/api/tickets/{ticket['id']}").json()
     assert saved_ticket["status"] == "pending_human_review"
+
+
+def test_human_review_action_is_idempotent_across_workflow_runs() -> None:
+    ticket = client.post(
+        "/api/tickets",
+        json={
+            "user_id": "U1003",
+            "order_id": "OD2026003",
+            "message": "Please refund this high-value order.",
+        },
+    ).json()
+
+    first = client.post(f"/api/tickets/{ticket['id']}/run").json()
+    second = client.post(f"/api/tickets/{ticket['id']}/run").json()
+
+    first_action = next(
+        step for step in first["trace"] if step["node"] == "action_executor"
+    )["output"]["executed_actions"][0]
+    second_action = next(
+        step for step in second["trace"] if step["node"] == "action_executor"
+    )["output"]["executed_actions"][0]
+
+    assert first_action["idempotent_replay"] is False
+    assert second_action["idempotent_replay"] is True
+    assert first_action["result"] == second_action["result"]

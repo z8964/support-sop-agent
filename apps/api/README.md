@@ -207,6 +207,25 @@ The ticket workflow now provides:
 ```env
 AGENT_TOOL_MAX_ATTEMPTS=3
 AGENT_MAX_STEPS=10
+TOOL_STORE_PATH=./data/tool_gateway.sqlite3
+```
+
+## Tool Gateway
+
+Business tools use a centralized gateway with:
+
+- Pydantic input and output validation
+- per-tool permissions such as `order:read` and `escalation:write`
+- bounded retries for execution failures
+- mandatory idempotency keys for side-effecting tools
+- SQLite-persisted audit and idempotency records
+- safe escalation creation when the Agent requires human review
+
+Repeated workflow runs reuse the stored escalation result instead of creating a duplicate.
+
+```text
+GET /api/tools/audits
+GET /api/tools/audits?tool_name=create_escalation&status=success
 ```
 
 ## Mock Business APIs

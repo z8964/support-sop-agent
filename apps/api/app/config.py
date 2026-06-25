@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     rag_keyword_weight: float = 0.3
     agent_tool_max_attempts: int = 3
     agent_max_steps: int = 10
+    tool_store_path: str = "./data/tool_gateway.sqlite3"
     memory_store_path: str = "./data/memories.sqlite3"
     memory_retrieval_top_k: int = 5
     memory_min_confidence: float = 0.5

@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.business_tool_service import business_tool_service
 from app.services.memory_service import memory_service
 from app.services.ticket_service import ticket_service
 from app.services.trace_service import trace_service
@@ -13,6 +14,7 @@ def setup_function() -> None:
     ticket_service.reset()
     trace_service.reset()
     memory_service.reset()
+    business_tool_service.reset()
 
 
 def test_run_shipped_refund_workflow() -> None:
@@ -42,6 +44,7 @@ def test_run_shipped_refund_workflow() -> None:
         "memory_retriever",
         "sop_retriever",
         "decision_agent",
+        "action_executor",
         "reply_writer",
         "ticket_update",
     ]
@@ -62,6 +65,7 @@ def test_run_shipped_refund_workflow() -> None:
         "memory_retriever",
         "sop_retriever",
         "decision_agent",
+        "action_executor",
         "reply_writer",
         "ticket_update",
     ]

@@ -13,6 +13,7 @@ if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
 from app.main import app  # noqa: E402
+from app.services.business_tool_service import business_tool_service  # noqa: E402
 from app.services.review_service import review_service  # noqa: E402
 from app.services.ticket_service import ticket_service  # noqa: E402
 from app.services.trace_service import trace_service  # noqa: E402
@@ -154,6 +155,7 @@ def reset_state() -> None:
     ticket_service.reset()
     trace_service.reset()
     review_service.reset()
+    business_tool_service.reset()
 
 
 def compare_equal(
@@ -184,4 +186,3 @@ def failed_case(case: dict[str, Any], failures: list[str]) -> dict[str, Any]:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
