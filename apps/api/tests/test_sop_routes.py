@@ -19,6 +19,9 @@ def test_reindex_sops() -> None:
     assert body["status"] == "ok"
     assert body["indexed_chunks"] >= 9
     assert body["embedding_dimensions"] == 384
+    assert body["embedding_provider"] == "hash"
+    assert body["embedding_model"] == "deterministic-hash-v1"
+    assert body["vector_store_backend"] == "sqlite"
     assert body["retrieval_mode"] == "vector_hybrid"
     assert {doc["policy_type"] for doc in body["documents"]} == {
         "refund",
@@ -50,6 +53,8 @@ def test_search_refund_policy() -> None:
     body = response.json()
     assert body["policy_type"] == "refund"
     assert body["retrieval_mode"] == "vector_hybrid"
+    assert body["embedding_provider"] == "hash"
+    assert body["vector_store_backend"] == "sqlite"
     assert len(body["hits"]) >= 1
     assert body["hits"][0]["chunk"]["section"] == "Shipped Orders"
     assert body["hits"][0]["chunk"]["source"] == "refund_policy.md"

@@ -1,7 +1,9 @@
+import hashlib
 import os
 import re
 from pathlib import Path
 
+from app.config import get_settings
 from app.schemas.sop import (
     SopChunk,
     SopDocumentSummary,
@@ -29,6 +31,7 @@ class SopService:
             or (Path(env_path) if env_path else root / "knowledge_base")
         )
         self._chunks: list[SopChunk] = []
+        self.settings = get_settings()
 
     def reindex(self) -> SopReindexResponse:
         chunks: list[SopChunk] = []
@@ -39,6 +42,9 @@ class SopService:
                 markdown_file.stem.replace("_policy", ""),
             )
             chunks.extend(self._parse_markdown_file(markdown_file, policy_type))
+
+        embedding_texts = [self._embedding_text(chunk) for chunk in chunks]
+        embeddings = embedding_service.embed_many(embedding_texts)
 
         self._chunks = chunks
         vector_store.reset()
@@ -52,23 +58,31 @@ class SopService:
                         "section": chunk.section,
                         "policy_type": chunk.policy_type,
                     },
-                    embedding=embedding_service.embed(self._embedding_text(chunk)),
+                    embedding=embedding,
                 )
-                for chunk in chunks
+                for chunk, embedding in zip(chunks, embeddings, strict=True)
             ]
+        )
+        vector_store.set_index_metadata(
+            {
+                "knowledge_signature": self._knowledge_signature(),
+                "embedding_signature": embedding_service.index_signature,
+            }
         )
 
         return SopReindexResponse(
             status="ok",
             indexed_chunks=len(chunks),
             embedding_dimensions=embedding_service.dimensions,
+            embedding_provider=embedding_service.provider_name,
+            embedding_model=embedding_service.model_name,
+            vector_store_backend=vector_store.backend_name,
             retrieval_mode="vector_hybrid",
             documents=self.list_documents(),
         )
 
     def list_documents(self) -> list[SopDocumentSummary]:
-        if not self._chunks:
-            self.reindex()
+        self._ensure_index()
 
         summaries: dict[tuple[str, str], int] = {}
         for chunk in self._chunks:
@@ -90,8 +104,7 @@ class SopService:
         policy_type: str | None = None,
         top_k: int = 4,
     ) -> SopSearchResponse:
-        if not self._chunks or vector_store.count() == 0:
-            self.reindex()
+        self._ensure_index()
 
         query_embedding = embedding_service.embed(query)
         query_terms = self._tokenize(query)
@@ -127,12 +140,48 @@ class SopService:
             query=query,
             policy_type=policy_type,
             retrieval_mode="vector_hybrid",
+            embedding_provider=embedding_service.provider_name,
+            embedding_model=embedding_service.model_name,
+            vector_store_backend=vector_store.backend_name,
             hits=hits[:top_k],
         )
 
     def reset(self) -> None:
         self._chunks = []
         vector_store.reset()
+
+    def _ensure_index(self) -> None:
+        metadata = vector_store.get_index_metadata()
+        index_is_current = (
+            vector_store.count() > 0
+            and metadata.get("knowledge_signature") == self._knowledge_signature()
+            and metadata.get("embedding_signature")
+            == embedding_service.index_signature
+        )
+        if index_is_current:
+            if not self._chunks:
+                self._restore_chunks()
+            return
+        self.reindex()
+
+    def _restore_chunks(self) -> None:
+        self._chunks = [
+            SopChunk(
+                id=document.id,
+                source=str(document.metadata["source"]),
+                section=str(document.metadata["section"]),
+                policy_type=str(document.metadata["policy_type"]),
+                content=document.content,
+            )
+            for document in vector_store.all_documents()
+        ]
+
+    def _knowledge_signature(self) -> str:
+        digest = hashlib.sha256()
+        for markdown_file in sorted(self.knowledge_base_path.glob("*.md")):
+            digest.update(markdown_file.name.encode("utf-8"))
+            digest.update(markdown_file.read_bytes())
+        return digest.hexdigest()
 
     def _parse_markdown_file(self, markdown_file: Path, policy_type: str) -> list[SopChunk]:
         text = markdown_file.read_text(encoding="utf-8")
@@ -206,8 +255,19 @@ class SopService:
     def _hybrid_score(self, vector_score: float, keyword_score: float) -> float:
         normalized_keyword = min(keyword_score / 8.0, 1.0)
         normalized_vector = (vector_score + 1.0) / 2.0
-        return round((normalized_vector * 0.7) + (normalized_keyword * 0.3), 4)
+        vector_weight = self.settings.rag_vector_weight
+        keyword_weight = self.settings.rag_keyword_weight
+        weight_total = vector_weight + keyword_weight
+        if weight_total <= 0:
+            vector_weight, keyword_weight, weight_total = 0.7, 0.3, 1.0
+        return round(
+            (
+                normalized_vector * vector_weight
+                + normalized_keyword * keyword_weight
+            )
+            / weight_total,
+            4,
+        )
 
 
 sop_service = SopService()
-

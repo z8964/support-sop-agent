@@ -300,7 +300,8 @@ POST /api/sops/search
 The SOP RAG pipeline includes:
 
 - Markdown heading-based chunking
-- deterministic embedding generation
+  - configurable embedding providers (local deterministic hash or OpenAI-compatible API)
+  - SQLite-persisted vector index with restart recovery
 - in-memory vector store
 - metadata filtering by `policy_type`
 - vector similarity search
@@ -448,7 +449,8 @@ Trace is created after workflow execution.
 ## Roadmap
 
 - Add SQLite/PostgreSQL persistence
-- Replace the default in-memory vector store with Chroma, Qdrant, or pgvector
+- Scale the current SQLite vector index to Qdrant or pgvector
+- Add BM25 and a reranker for more demanding SOP retrieval
 - Add real LLM prompt nodes
 - Replace in-memory memory with persistent or vector memory
 - Add authentication

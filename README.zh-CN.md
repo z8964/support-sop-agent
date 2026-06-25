@@ -445,10 +445,39 @@ POST /api/tickets/{ticket_id}/run
 
 工作流执行后才会生成 Trace。
 
+## RAG 配置
+
+默认配置使用本地确定性 Hash Embedding 和 SQLite 持久化向量索引，无需下载模型或配置 API Key：
+
+```env
+RAG_EMBEDDING_PROVIDER=hash
+RAG_VECTOR_STORE_BACKEND=sqlite
+RAG_VECTOR_STORE_PATH=./data/sop_vectors.sqlite3
+RAG_VECTOR_WEIGHT=0.7
+RAG_KEYWORD_WEIGHT=0.3
+```
+
+如需使用真实语义 Embedding，可切换到 OpenAI-compatible 接口。该接口也可以指向部署了 BGE-M3 等模型的兼容服务：
+
+```env
+RAG_EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+```
+
+修改 SOP 文件、Embedding 模型或向量维度后，系统会通过索引指纹识别配置变化并自动重建索引，也可以手动调用：
+
+```text
+POST /api/sops/reindex
+```
+
 ## Roadmap
 
 - 接入 SQLite / PostgreSQL 持久化
-- 将默认内存向量库替换为 Chroma、Qdrant 或 pgvector
+- 将当前 SQLite 向量索引扩展为 Qdrant 或 pgvector
+- 增加 BM25 与 Reranker，进一步提升复杂 SOP 的排序效果
 - 增加真实 LLM Prompt 节点
 - 将内存版 Memory 替换为持久化或向量记忆
 - 增加认证

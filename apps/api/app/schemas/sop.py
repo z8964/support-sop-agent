@@ -33,6 +33,9 @@ class SopSearchResponse(BaseModel):
     query: str
     policy_type: str | None
     retrieval_mode: str
+    embedding_provider: str
+    embedding_model: str
+    vector_store_backend: str
     hits: list[SopSearchHit]
 
 
@@ -40,5 +43,8 @@ class SopReindexResponse(BaseModel):
     status: str
     indexed_chunks: int
     embedding_dimensions: int
+    embedding_provider: str
+    embedding_model: str
+    vector_store_backend: str
     retrieval_mode: str
     documents: list[SopDocumentSummary]

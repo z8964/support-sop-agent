@@ -12,8 +12,15 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     openai_model: str = "gpt-4.1-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_embedding_dimensions: int = 1536
     vector_store_path: str = "./chroma"
     rag_top_k: int = 4
+    rag_embedding_provider: str = "hash"
+    rag_vector_store_backend: str = "sqlite"
+    rag_vector_store_path: str = "./data/sop_vectors.sqlite3"
+    rag_vector_weight: float = 0.7
+    rag_keyword_weight: float = 0.3
     high_amount_threshold: int = 500
     low_confidence_threshold: float = 0.7
 
@@ -27,4 +34,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

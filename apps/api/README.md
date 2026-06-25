@@ -132,11 +132,41 @@ Search example:
 The SOP service uses vector hybrid retrieval:
 
 - chunk Markdown SOP files by section
-- generate deterministic embeddings
-- store chunks in an in-memory vector store
+- generate embeddings in batches
+- use deterministic hash embeddings by default for zero-config local execution
+- optionally use an OpenAI-compatible embedding API
+- persist vectors and index metadata in SQLite
+- restore a valid index after restart
+- rebuild automatically when SOP content or embedding configuration changes
 - filter by `policy_type`
 - combine vector score and keyword score
 - return source/section citations
+
+Default local RAG configuration:
+
+```env
+RAG_EMBEDDING_PROVIDER=hash
+RAG_VECTOR_STORE_BACKEND=sqlite
+RAG_VECTOR_STORE_PATH=./data/sop_vectors.sqlite3
+RAG_VECTOR_WEIGHT=0.7
+RAG_KEYWORD_WEIGHT=0.3
+```
+
+Use a real OpenAI-compatible embedding endpoint:
+
+```env
+RAG_EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+```
+
+After changing the provider, model, dimensions, or SOP files, call:
+
+```text
+POST /api/sops/reindex
+```
 
 ## Mock Business APIs
 
