@@ -82,6 +82,8 @@ Submit review example:
 ```text
 GET  /api/memory/users/{user_id}
 POST /api/memory
+POST /api/memory/retrieve
+DELETE /api/memory/{memory_id}
 ```
 
 Create memory example:
@@ -90,10 +92,32 @@ Create memory example:
 {
   "user_id": "U1001",
   "type": "user_preference",
+  "scope": "semantic",
   "content": "Customer prefers concise replies.",
-  "metadata": {
-    "source": "manual"
-  }
+  "source": "manual",
+  "confidence": 0.9,
+  "importance": 0.7,
+  "memory_key": "reply_style"
+}
+```
+
+Memory records are persisted in SQLite and support:
+
+- semantic, episodic, and procedural scopes
+- confidence, importance, source, and expiration
+- exact duplicate suppression
+- `memory_key` conflict superseding
+- soft deletion
+- query and intent-aware retrieval
+
+Retrieve relevant memory:
+
+```json
+{
+  "user_id": "U1001",
+  "query": "Please refund my order.",
+  "intent": "refund_request",
+  "top_k": 5
 }
 ```
 

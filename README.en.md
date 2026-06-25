@@ -61,9 +61,9 @@ intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision
 - Backend: FastAPI
 - Frontend: React + Vite
 - Agent workflow: LangGraph
-- SOP retrieval: Markdown policy loader + in-memory vector hybrid retrieval
-- Memory: in-memory user preference and workflow outcome records
-- Storage: in-memory services for MVP
+- SOP retrieval: Markdown policy loader + SQLite-persisted vector hybrid retrieval
+- Memory: SQLite persistence with semantic, episodic, and procedural scopes
+- Storage: SQLite for vector and memory data; ticket services remain in memory
 - Evaluation: YAML cases + Python runner
 - DevOps: Docker Compose
 
@@ -322,6 +322,8 @@ Memory APIs:
 ```text
 GET  /api/memory/users/{user_id}
 POST /api/memory
+POST /api/memory/retrieve
+DELETE /api/memory/{memory_id}
 ```
 
 Mock business APIs:
@@ -452,7 +454,7 @@ Trace is created after workflow execution.
 - Scale the current SQLite vector index to Qdrant or pgvector
 - Add BM25 and a reranker for more demanding SOP retrieval
 - Add real LLM prompt nodes
-- Replace in-memory memory with persistent or vector memory
+- Extend lightweight relevance retrieval with vector memory and summarization
 - Add authentication
 - Add OpenTelemetry or LangSmith tracing
 - Add GitHub Actions for tests and evals

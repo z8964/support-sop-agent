@@ -226,13 +226,22 @@ def _context_node(state: TicketWorkflowState) -> TicketWorkflowState:
 
 
 def _memory_retriever_node(state: TicketWorkflowState) -> TicketWorkflowState:
-    memory = memory_service.build_user_context(state["user_id"])
+    intent = state["intent"]["intent"]
+    memory = memory_service.build_user_context(
+        user_id=state["user_id"],
+        query=state["message"],
+        intent=intent,
+    )
     output = {"memory": memory}
     return _merge(
         state,
         output,
         "memory_retriever",
-        {"user_id": state["user_id"]},
+        {
+            "user_id": state["user_id"],
+            "query": state["message"],
+            "intent": intent,
+        },
         output,
     )
 
@@ -296,7 +305,7 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
     context = state.get("context", {})
     order = context.get("order")
     user = context.get("user")
-    memory_summary = state.get("memory", {}).get("summary", "")
+    memory_context = state.get("memory", {})
     missing_fields = state.get("missing_fields", [])
     tool_errors = state.get("tool_errors", [])
 
@@ -341,7 +350,7 @@ def _decision_node(state: TicketWorkflowState) -> TicketWorkflowState:
         order_status = order.get("status")
         high_risk = amount > settings.high_amount_threshold or bool(
             user and user.get("is_vip")
-        ) or "manual confirmation" in memory_summary.lower()
+        ) or _memory_requires_human_review(memory_context)
         if order_status == "shipped":
             decision = {
                 "decision": "suggest_reject_delivery_or_return_after_receipt",
@@ -599,6 +608,21 @@ def _policy_refs(state: TicketWorkflowState) -> list[dict[str, str]]:
         }
         for match in state.get("sop_matches", [])
     ]
+
+
+def _memory_requires_human_review(memory_context: dict[str, Any]) -> bool:
+    for memory in memory_context.get("memories", []):
+        metadata = memory.get("metadata", {})
+        if metadata.get("requires_human_review") is True:
+            return True
+        if memory.get("type") == "risk_signal":
+            return True
+        if (
+            memory.get("type") == "user_preference"
+            and "manual confirmation" in memory.get("content", "").lower()
+        ):
+            return True
+    return False
 
 
 def _compact_state(state: TicketWorkflowState) -> dict[str, Any]:

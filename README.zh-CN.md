@@ -61,9 +61,9 @@ intent_agent -> context_builder -> memory_retriever -> sop_retriever -> decision
 - Backend: FastAPI
 - Frontend: React + Vite
 - Agent workflow: LangGraph
-- SOP retrieval: Markdown policy loader + 内存版向量混合检索
-- Memory: 内存版用户偏好和 workflow outcome 记录
-- Storage: MVP 阶段使用内存服务
+- SOP retrieval: Markdown policy loader + SQLite 持久化向量混合检索
+- Memory: SQLite 持久化 + 语义/情景/程序记忆分层
+- Storage: SQLite 向量索引与 Memory，工单服务仍为内存实现
 - Evaluation: YAML cases + Python runner
 - DevOps: Docker Compose
 
@@ -321,7 +321,20 @@ Memory API：
 ```text
 GET  /api/memory/users/{user_id}
 POST /api/memory
+POST /api/memory/retrieve
+DELETE /api/memory/{memory_id}
 ```
+
+Memory 支持：
+
+- `semantic`：稳定的用户偏好、业务事实和风险信号
+- `episodic`：历史工单和工作流处理结果
+- `procedural`：历史成功处理策略
+- 置信度、重要度、来源和有效期
+- `memory_key` 去重与新旧事实冲突处理
+- 软删除和失效记忆过滤
+- 根据当前工单文本和意图进行相关性检索
+- 结构化风险记忆参与人工审核判断
 
 Mock 业务 API：
 
@@ -491,13 +504,40 @@ AGENT_TOOL_MAX_ATTEMPTS=3
 AGENT_MAX_STEPS=10
 ```
 
+## Memory 配置
+
+```env
+MEMORY_STORE_PATH=./data/memories.sqlite3
+MEMORY_RETRIEVAL_TOP_K=5
+MEMORY_MIN_CONFIDENCE=0.5
+```
+
+风险记忆示例：
+
+```json
+{
+  "user_id": "U1002",
+  "type": "risk_signal",
+  "scope": "semantic",
+  "content": "Recent refund activity requires manual review.",
+  "metadata": {
+    "intent": "refund_request",
+    "requires_human_review": true
+  },
+  "source": "risk_engine",
+  "confidence": 0.95,
+  "importance": 1.0,
+  "memory_key": "refund_risk"
+}
+```
+
 ## Roadmap
 
 - 接入 SQLite / PostgreSQL 持久化
 - 将当前 SQLite 向量索引扩展为 Qdrant 或 pgvector
 - 增加 BM25 与 Reranker，进一步提升复杂 SOP 的排序效果
 - 增加真实 LLM Prompt 节点
-- 将内存版 Memory 替换为持久化或向量记忆
+- 将当前轻量相关性检索升级为向量 Memory 与语义压缩
 - 增加认证
 - 接入 OpenTelemetry 或 LangSmith tracing
 - 添加 GitHub Actions 跑测试和评估
